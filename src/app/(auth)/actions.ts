@@ -41,7 +41,9 @@ export async function signup(formData: FormData) {
     return { error: error.message }
   }
 
-  if (authData.user && !authData.session) {
+  // If we reach here, signUp didn't return an error.
+  // If session is null, email confirmation is required.
+  if (!authData.session) {
     return { success: 'Please check your email and confirm your email.' }
   }
 
