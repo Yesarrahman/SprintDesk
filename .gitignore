@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# internal AI files
+AGENTS.md
+Antigravity.md
+CLAUDE.md
+PRD.md
