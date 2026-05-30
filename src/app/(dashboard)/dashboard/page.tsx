@@ -12,12 +12,20 @@ export default async function DashboardPage() {
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
 
+  const hour = new Date().getHours()
+  let greeting = 'Good evening'
+  if (hour >= 5 && hour < 12) {
+    greeting = 'Good morning'
+  } else if (hour >= 12 && hour < 17) {
+    greeting = 'Good afternoon'
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400">
-            Good morning, {userName}
+            {greeting}, {userName}
           </h1>
           <p className="text-slate-500 mt-1">Here&apos;s your productivity overview for today.</p>
         </div>

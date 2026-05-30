@@ -1,5 +1,7 @@
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
+import { VerificationToast } from '@/components/auth/verification-toast'
+import { Suspense } from 'react'
 
 export default function DashboardLayout({
   children,
@@ -19,6 +21,9 @@ export default function DashboardLayout({
         
         <div className="flex-1 p-6 overflow-auto">
           <div className="max-w-7xl mx-auto h-full">
+            <Suspense fallback={null}>
+              <VerificationToast />
+            </Suspense>
             {children}
           </div>
         </div>

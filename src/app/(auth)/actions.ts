@@ -35,10 +35,14 @@ export async function signup(formData: FormData) {
     },
   }
 
-  const { error } = await supabase.auth.signUp(data)
+  const { data: authData, error } = await supabase.auth.signUp(data)
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (authData.user && !authData.session) {
+    return { success: 'Please check your email and confirm your email.' }
   }
 
   revalidatePath('/', 'layout')

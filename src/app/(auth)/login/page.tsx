@@ -42,19 +42,14 @@ export default function LoginPage() {
 
   async function onSubmit(data: LoginFormValues) {
     setIsLoading(true)
-    try {
-      const formData = new FormData()
-      formData.append('email', data.email)
-      formData.append('password', data.password)
+    const formData = new FormData()
+    formData.append('email', data.email)
+    formData.append('password', data.password)
 
-      const result = await login(formData)
-      
-      if (result?.error) {
-        toast.error(result.error)
-        setIsLoading(false)
-      }
-    } catch {
-      toast.error('An unexpected error occurred')
+    const result = await login(formData)
+    
+    if (result?.error) {
+      toast.error(result.error)
       setIsLoading(false)
     }
   }
