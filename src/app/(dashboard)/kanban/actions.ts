@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import type { Task, TaskStatus } from '@/types'
 
@@ -57,7 +57,8 @@ export async function createTask(formData: FormData) {
     let workspaceId = activeWorkspaceId || null
 
     if (!workspaceId) {
-      const { data: workspaces, error: wsFetchError } = await supabase
+      const adminClient = await createAdminClient()
+      const { data: workspaces, error: wsFetchError } = await adminClient
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', user.id)
@@ -82,7 +83,7 @@ export async function createTask(formData: FormData) {
           }
 
           const newWorkspaceId = crypto.randomUUID();
-          const { error: wsError } = await supabase.from('workspaces').insert({ id: newWorkspaceId, name: 'My Workspace', owner_id: user.id })
+          const { error: wsError } = await adminClient.from('workspaces').insert({ id: newWorkspaceId, name: 'My Workspace', owner_id: user.id })
           
           if (wsError) {
             console.error('Error creating workspace:', wsError)
@@ -90,7 +91,7 @@ export async function createTask(formData: FormData) {
           }
           
           workspaceId = newWorkspaceId
-          const { error: wmError } = await supabase.from('workspace_members').insert({ workspace_id: workspaceId, user_id: user.id, role: 'owner' })
+          const { error: wmError } = await adminClient.from('workspace_members').insert({ workspace_id: workspaceId, user_id: user.id, role: 'owner' })
           if (wmError) {
             console.error('Error creating workspace member:', wmError)
             return { error: 'Failed to assign workspace membership' }
@@ -103,7 +104,8 @@ export async function createTask(formData: FormData) {
     }
 
     // RBAC Check for Create
-    const { data: member } = await supabase
+    const adminClient = await createAdminClient()
+    const { data: member } = await adminClient
       .from('workspace_members')
       .select('role')
       .eq('workspace_id', workspaceId)
@@ -172,7 +174,8 @@ export async function updateTaskDetails(taskId: string, formData: FormData) {
     if (!taskData?.workspace_id) return { error: 'Task not found' }
 
     // RBAC Check for Edit
-    const { data: member } = await supabase
+    const adminClient = await createAdminClient()
+    const { data: member } = await adminClient
       .from('workspace_members')
       .select('role')
       .eq('workspace_id', taskData.workspace_id)
@@ -258,7 +261,8 @@ export async function deleteTask(taskId: string) {
 
     if (taskData?.workspace_id) {
        // RBAC Check
-       const { data: member } = await supabase
+       const adminClient = await createAdminClient()
+       const { data: member } = await adminClient
          .from('workspace_members')
          .select('role')
          .eq('workspace_id', taskData.workspace_id)

@@ -52,8 +52,14 @@ export async function createWorkspace(name: string) {
 
   const newWorkspaceId = crypto.randomUUID()
 
-  // 1. Insert Workspace
-  const { error: wsError } = await supabase
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { error: 'Server configuration error: SUPABASE_SERVICE_ROLE_KEY is missing in your .env.local file. Please add it and restart the server.' }
+  }
+
+  const adminClient = await createAdminClient()
+
+  // 1. Insert Workspace (Use admin client to bypass RLS)
+  const { error: wsError } = await adminClient
     .from('workspaces')
     .insert({ id: newWorkspaceId, name, owner_id: user.id })
 
@@ -63,11 +69,6 @@ export async function createWorkspace(name: string) {
   }
 
   // 2. Insert Member (Use admin client to bypass RLS, as the user isn't a member yet)
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return { error: 'Server configuration error: SUPABASE_SERVICE_ROLE_KEY is missing in your .env.local file. Please add it and restart the server.' }
-  }
-
-  const adminClient = await createAdminClient()
   const { error: memberError } = await adminClient
     .from('workspace_members')
     .insert({
