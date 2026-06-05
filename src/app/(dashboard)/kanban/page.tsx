@@ -15,6 +15,7 @@ export default async function KanbanPage() {
 
   let role = 'owner'
   let isPersonal = false
+  let workspaceName = 'Workspace'
   
   if (user && activeWorkspaceId) {
     const { data: member } = await supabase
@@ -35,8 +36,11 @@ export default async function KanbanPage() {
       .eq('id', activeWorkspaceId)
       .single()
       
-    if (ws && ws.name === 'My Workspace' && ws.owner_id === user.id) {
-      isPersonal = true
+    if (ws) {
+      workspaceName = ws.name
+      if (ws.name === 'My Workspace' && ws.owner_id === user.id) {
+        isPersonal = true
+      }
     }
   }
 
@@ -53,10 +57,10 @@ export default async function KanbanPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500 dark:from-white dark:to-slate-400">
-            {isPersonal ? 'Personal Kanban' : 'Workspace Kanban'}
+            {isPersonal ? 'Personal Space' : workspaceName}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">
-            Manage your project workflow
+            {isPersonal ? 'Manage your personal tasks and projects' : 'Manage your team workflow'}
           </p>
         </div>
         
