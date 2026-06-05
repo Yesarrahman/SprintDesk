@@ -82,7 +82,10 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove }: TaskCardPro
       style={style}
       {...attributes}
       {...listeners}
-      onClick={() => setIsEditDialogOpen(true)}
+      onClick={(e) => {
+        if (e.defaultPrevented) return;
+        setIsEditDialogOpen(true);
+      }}
       className={cn(
         'group p-4 bg-white/50 dark:bg-[#0D2440]/60 backdrop-blur-xl rounded-xl border border-white/60 dark:border-slate-700/50 shadow-[0_4px_16px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_24px_rgba(46,94,153,0.12)] hover:-translate-y-1 transition-all duration-300 cursor-pointer',
         'hover:border-primary/40 dark:hover:border-primary/40'
@@ -102,7 +105,7 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove }: TaskCardPro
         </div>
         
         {/* We stop propagation here so dropdown click doesn't trigger drag */}
-        <div onPointerDown={(e) => e.stopPropagation()}>
+        <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-primary/50">
               <MoreHorizontal className="h-4 w-4" />

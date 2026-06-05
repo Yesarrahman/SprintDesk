@@ -1,7 +1,7 @@
 import { fetchTasks } from './actions'
 import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { CreateTaskDialog } from '@/components/kanban/create-task-dialog'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import KanbanActions from '@/components/kanban/kanban-actions'
 
@@ -27,7 +27,9 @@ export default async function KanbanPage() {
     if (member) role = member.role
     
     // Check if it's the personal workspace (named "My Workspace" and owned by user)
-    const { data: ws } = await supabase
+    // We use adminClient because of the RLS recursion bug on the workspaces table
+    const adminClient = await createAdminClient()
+    const { data: ws } = await adminClient
       .from('workspaces')
       .select('name, owner_id')
       .eq('id', activeWorkspaceId)
