@@ -64,7 +64,7 @@ export default async function KanbanPage() {
         </div>
       </div>
       
-      <KanbanBoard initialTasks={tasks || []} role={role} workspaceId={activeWorkspaceId!} />
+      <KanbanBoard initialTasks={tasks || []} role={role} workspaceId={activeWorkspaceId!} isPersonal={isPersonal} />
     </div>
   )
 }

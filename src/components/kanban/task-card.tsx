@@ -108,29 +108,47 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove }: TaskCardPro
               <MoreHorizontal className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
+              <div className="px-2 py-1.5 text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Actions</div>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditDialogOpen(true); }}>
+                Edit Task
+              </DropdownMenuItem>
+              {/* Other dropdown items requested by user */}
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditDialogOpen(true); }}>
+                Change Due Date
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditDialogOpen(true); }}>
+                Change Assignee
+              </DropdownMenuItem>
+              
+              <div className="h-px bg-slate-200 dark:bg-slate-800 my-1 mx-1" />
               <div className="px-2 py-1.5 text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Move to</div>
+              {task.status !== 'backlog' && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove?.(task.id, 'backlog'); }}>
+                  Backlog
+                </DropdownMenuItem>
+              )}
               {task.status !== 'todo' && (
-                <DropdownMenuItem onClick={() => onMove?.(task.id, 'todo')}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove?.(task.id, 'todo'); }}>
                   To Do
                 </DropdownMenuItem>
               )}
               {task.status !== 'in_progress' && (
-                <DropdownMenuItem onClick={() => onMove?.(task.id, 'in_progress')}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove?.(task.id, 'in_progress'); }}>
                   In Progress
                 </DropdownMenuItem>
               )}
               {task.status !== 'in_review' && (
-                <DropdownMenuItem onClick={() => onMove?.(task.id, 'in_review')}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove?.(task.id, 'in_review'); }}>
                   In Review
                 </DropdownMenuItem>
               )}
               {task.status !== 'completed' && (
-                <DropdownMenuItem onClick={() => onMove?.(task.id, 'completed')}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove?.(task.id, 'completed'); }}>
                   Completed
                 </DropdownMenuItem>
               )}
               {task.status !== 'cancelled' && (
-                <DropdownMenuItem onClick={() => onMove?.(task.id, 'cancelled')}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove?.(task.id, 'cancelled'); }}>
                   Cancelled
                 </DropdownMenuItem>
               )}
@@ -139,7 +157,7 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove }: TaskCardPro
                   <div className="h-px bg-slate-200 dark:bg-slate-800 my-1 mx-1" />
                   <DropdownMenuItem
                     className="text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50 focus:text-red-600"
-                    onClick={() => onDelete?.(task.id)}
+                    onClick={(e) => { e.stopPropagation(); onDelete?.(task.id); }}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete

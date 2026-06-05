@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { fetchDashboardMetrics } from './actions'
 import { createClient } from '@/lib/supabase/server'
 import { CreateTaskDialog } from '@/components/kanban/create-task-dialog'
+import { DashboardChart } from './dashboard-chart'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -70,9 +71,11 @@ export default async function DashboardPage() {
             <Clock className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900 dark:text-white">--</div>
+            <div className="text-3xl font-bold text-slate-900 dark:text-white">
+               {metrics?.estimatedFinishDate ? new Date(metrics.estimatedFinishDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '--'}
+            </div>
             <p className="text-xs text-slate-500 mt-1">
-              Requires more velocity data
+              {metrics?.estimatedFinishDate ? 'Based on recent velocity' : 'Requires more velocity data'}
             </p>
           </CardContent>
         </Card>
@@ -98,12 +101,15 @@ export default async function DashboardPage() {
               <CardTitle>Productivity Trends</CardTitle>
               <CardDescription>Tasks completed over the last 7 days</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 flex items-center justify-center">
-              {/* Recharts placeholder */}
-              <div className="flex flex-col items-center text-slate-400">
-                <TrendingUp className="h-12 w-12 mb-3 opacity-20" />
-                <p>Chart data will populate as you complete more tasks</p>
-              </div>
+            <CardContent className="flex-1 flex items-center justify-center p-0">
+               {metrics?.trends && metrics.trends.some((t: any) => t.completed > 0) ? (
+                 <DashboardChart data={metrics.trends} />
+               ) : (
+                 <div className="flex flex-col items-center text-slate-400">
+                   <TrendingUp className="h-12 w-12 mb-3 opacity-20" />
+                   <p>Chart data will populate as you complete more tasks</p>
+                 </div>
+               )}
             </CardContent>
           </Card>
         </div>

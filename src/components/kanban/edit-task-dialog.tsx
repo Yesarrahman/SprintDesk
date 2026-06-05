@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
@@ -40,7 +40,7 @@ const taskSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
-  status: z.enum(['todo', 'in_progress', 'in_review', 'completed', 'cancelled', 'archived']),
+  status: z.enum(['backlog', 'todo', 'in_progress', 'in_review', 'completed', 'cancelled', 'archived']),
   due_date: z.string().optional(),
   estimated_duration: z.string().optional(),
 })
@@ -69,6 +69,19 @@ export function EditTaskDialog({ task, open, onOpenChange }: EditTaskDialogProps
     },
   })
 
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        title: task.title,
+        description: task.description || '',
+        priority: task.priority,
+        status: task.status,
+        due_date: task.due_date ? task.due_date.split('T')[0] : '',
+        estimated_duration: task.estimated_duration ? task.estimated_duration.toString() : '',
+      })
+    }
+  }, [open, task, form])
+
   async function onSubmit(data: TaskFormValues) {
     setIsLoading(true)
     const formData = new FormData()
@@ -96,6 +109,7 @@ export function EditTaskDialog({ task, open, onOpenChange }: EditTaskDialogProps
       <DialogContent 
         className="sm:max-w-[500px] bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border border-white/20 dark:border-slate-800/50"
         onKeyDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         <DialogHeader>
           <DialogTitle>Edit Task</DialogTitle>
@@ -149,6 +163,7 @@ export function EditTaskDialog({ task, open, onOpenChange }: EditTaskDialogProps
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="backlog">Backlog</SelectItem>
                         <SelectItem value="todo">To Do</SelectItem>
                         <SelectItem value="in_progress">In Progress</SelectItem>
                         <SelectItem value="in_review">In Review</SelectItem>

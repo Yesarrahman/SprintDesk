@@ -10,6 +10,7 @@ import {
 import type { Task, TaskStatus } from '@/types'
 import { TaskCard } from './task-card'
 import { cn } from '@/lib/utils'
+import { CreateTaskDialog } from './create-task-dialog'
 
 interface KanbanColumnProps {
   column: {
@@ -23,6 +24,7 @@ interface KanbanColumnProps {
 }
 
 const statusColors = {
+  backlog: 'border-slate-300 dark:border-slate-700 bg-slate-600',
   todo: 'border-slate-200 dark:border-slate-800 bg-slate-500',
   in_progress: 'border-blue-200 dark:border-blue-900 bg-blue-500',
   in_review: 'border-amber-200 dark:border-amber-900 bg-amber-500',
@@ -74,6 +76,10 @@ export function KanbanColumn({ column, tasks, role = 'owner', onDeleteTask, onMo
              <p className="text-sm text-slate-400 italic">No tasks here</p>
           </div>
         )}
+      </div>
+
+      <div className="p-3 border-t border-slate-200/50 dark:border-slate-800/50">
+        <CreateTaskDialog initialStatus={column.id} />
       </div>
     </div>
   )

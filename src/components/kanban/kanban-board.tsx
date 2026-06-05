@@ -19,11 +19,13 @@ import type { Task, TaskStatus } from '@/types'
 import { useKanbanStore } from '@/store/kanban-store'
 import { KanbanColumn } from './kanban-column'
 import { TaskCard } from './task-card'
-import { updateTaskStatus, deleteTask } from '@/app/(dashboard)/kanban/actions'
+import { updateTaskStatus, deleteTask, updateTaskOrder } from '@/app/(dashboard)/kanban/actions'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { arrayMove } from '@dnd-kit/sortable'
 
-const COLUMNS: { id: TaskStatus; title: string }[] = [
+const ALL_COLUMNS: { id: TaskStatus; title: string }[] = [
+  { id: 'backlog', title: 'Backlog' },
   { id: 'todo', title: 'To Do' },
   { id: 'in_progress', title: 'In Progress' },
   { id: 'in_review', title: 'In Review' },
@@ -34,17 +36,20 @@ interface KanbanBoardProps {
   initialTasks: Task[]
   role?: string
   workspaceId: string
+  isPersonal?: boolean
 }
 
-export function KanbanBoard({ initialTasks, role = 'owner', workspaceId }: KanbanBoardProps) {
+export function KanbanBoard({ initialTasks, role = 'owner', workspaceId, isPersonal = false }: KanbanBoardProps) {
   const { tasks, setTasks, moveTask, removeTask } = useKanbanStore()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
-  // Ensure we are mounted before rendering DndContext to avoid hydration mismatch
   const [isMounted, setIsMounted] = useState(false)
 
+  const columns = isPersonal ? ALL_COLUMNS.filter(c => c.id !== 'in_review') : ALL_COLUMNS
+
   useEffect(() => {
-    setTasks(initialTasks)
-    // eslint-disable-next-line
+    // Sort tasks by sort_order
+    const sorted = [...initialTasks].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    setTasks(sorted)
     setIsMounted(true)
 
     const supabase = createClient()
@@ -98,8 +103,9 @@ export function KanbanBoard({ initialTasks, role = 'owner', workspaceId }: Kanba
     if (!over) return
 
     const activeId = active.id
+    const overId = over.id
 
-    if (activeId === over.id) return
+    if (activeId === overId) return
 
     const isActiveTask = active.data.current?.type === 'Task'
     const isOverTask = over.data.current?.type === 'Task'
@@ -107,57 +113,85 @@ export function KanbanBoard({ initialTasks, role = 'owner', workspaceId }: Kanba
 
     if (!isActiveTask) return
 
-    // Dropping a task over another task
-    if (isActiveTask && isOverTask) {
-      const overStatus = over.data.current?.task.status
-      const activeStatus = active.data.current?.task.status
-      if (activeStatus !== overStatus) {
-         moveTask(activeId as string, overStatus)
-      }
-    }
+    const activeIndex = tasks.findIndex(t => t.id === activeId)
+    const overIndex = tasks.findIndex(t => t.id === overId)
+    
+    if (activeIndex === -1) return
 
-    // Dropping a task over an empty column
-    if (isActiveTask && isOverColumn) {
-      const overStatus = over.data.current?.column.id
-      const activeStatus = active.data.current?.task.status
+    if (isOverTask) {
+      const overStatus = over.data.current?.task.status
+      const activeStatus = tasks[activeIndex].status
+      
       if (activeStatus !== overStatus) {
-         moveTask(activeId as string, overStatus)
+         // Moving across columns
+         const newTasks = [...tasks]
+         newTasks[activeIndex].status = overStatus
+         // Place it before the over task
+         const rearranged = arrayMove(newTasks, activeIndex, overIndex)
+         setTasks(rearranged)
+      } else {
+         // Moving within same column
+         const rearranged = arrayMove(tasks, activeIndex, overIndex)
+         setTasks(rearranged)
+      }
+    } else if (isOverColumn) {
+      const overStatus = over.data.current?.column.id
+      const activeStatus = tasks[activeIndex].status
+      if (activeStatus !== overStatus) {
+         const newTasks = [...tasks]
+         newTasks[activeIndex].status = overStatus
+         setTasks(newTasks)
       }
     }
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
     document.body.style.cursor = ''
+    if (!activeTask) return
     setActiveTask(null)
-    const { active, over } = event
-    if (!over) return
 
-    const activeId = active.id
-    const task = tasks.find(t => t.id === activeId)
+    // The order and status in `tasks` state is now the "final" optimistic state.
+    // We just need to persist the new order/status to the backend.
     
-    if(!task) return;
+    // We update the backend with the new order for all tasks in the affected column(s)
+    // To minimize calls, we could update only the affected tasks. 
+    // Since we reordered, the simplest is to assign a new `sort_order` based on index.
+    
+    const newTasks = [...tasks].map((t, index) => ({
+       ...t,
+       sort_order: index
+    }))
+    
+    setTasks(newTasks)
 
-    let newStatus = task.status;
+    // Find the task we dragged to see its new status
+    const draggedTaskNow = newTasks.find(t => t.id === activeTask.id)
+    if (!draggedTaskNow) return
 
-    if(over.data.current?.type === 'Task'){
-        newStatus = over.data.current?.task.status;
-    } else if(over.data.current?.type === 'Column'){
-        newStatus = over.data.current?.column.id;
+    // If status changed, call updateTaskStatus
+    if (draggedTaskNow.status !== activeTask.status) {
+       const result = await updateTaskStatus(activeTask.id, draggedTaskNow.status)
+       if (result?.error) toast.error('Failed to update task status')
     }
 
-    if (task.status !== newStatus) {
-      // Optimistic update happens in dragOver, now persist to server
-      const result = await updateTaskStatus(activeId as string, newStatus)
-      if (result?.error) {
-        toast.error('Failed to move task')
-        // We could revert the state here if needed
-      }
+    // Persist new sort orders for the tasks that changed (to optimize, we can just send the ones in the new/old columns)
+    const columnsToUpdate = [activeTask.status, draggedTaskNow.status]
+    const tasksToUpdate = newTasks.filter(t => columnsToUpdate.includes(t.status))
+    
+    const orderUpdates = tasksToUpdate.map(t => ({
+      id: t.id,
+      sort_order: t.sort_order!,
+      status: t.status
+    }))
+
+    const result = await updateTaskOrder(orderUpdates)
+    if (result?.error) {
+      toast.error('Failed to save task order')
     }
   }
 
   const handleDeleteTask = async (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId)
-    // Optimistic delete
     removeTask(taskId)
     const result = await deleteTask(taskId)
     if (result?.error) {
@@ -171,12 +205,8 @@ export function KanbanBoard({ initialTasks, role = 'owner', workspaceId }: Kanba
   const handleMoveTask = async (taskId: string, newStatus: TaskStatus) => {
     const task = tasks.find((t) => t.id === taskId)
     if (!task || task.status === newStatus) return
-
     const previousStatus = task.status
-
-    // Optimistic update
     moveTask(taskId, newStatus)
-
     const result = await updateTaskStatus(taskId, newStatus)
     if (result?.error) {
       toast.error('Failed to move task')
@@ -195,7 +225,7 @@ export function KanbanBoard({ initialTasks, role = 'owner', workspaceId }: Kanba
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-6 h-[calc(100vh-12rem)] overflow-x-auto pb-4">
-        {COLUMNS.map((col) => (
+        {columns.map((col) => (
           <KanbanColumn
             key={col.id}
             column={col}

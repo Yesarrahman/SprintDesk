@@ -245,6 +245,29 @@ export async function updateTaskStatus(taskId: string, newStatus: TaskStatus) {
   }
 }
 
+export async function updateTaskOrder(updates: { id: string; sort_order: number; status: TaskStatus }[]) {
+  try {
+    const supabase = await createClient()
+
+    const { error } = await supabase
+      .from('tasks')
+      .upsert(
+        updates.map(u => ({ id: u.id, sort_order: u.sort_order, status: u.status })),
+        { onConflict: 'id' }
+      )
+
+    if (error) {
+      console.error('Error updating task order:', error)
+      return { error: error.message }
+    }
+
+    return { success: true }
+  } catch (err) {
+    console.error('Unexpected error in updateTaskOrder:', err)
+    return { error: 'An unexpected error occurred while updating task order' }
+  }
+}
+
 export async function deleteTask(taskId: string) {
   try {
     const supabase = await createClient()

@@ -1,5 +1,5 @@
 export type Priority = 'low' | 'medium' | 'high' | 'urgent'
-export type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'completed' | 'cancelled' | 'archived'
+export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'in_review' | 'completed' | 'cancelled' | 'archived'
 export type RecurringType = 'daily' | 'weekly'
 export type WorkspaceRole = 'owner' | 'admin' | 'manager' | 'member'
 
@@ -43,6 +43,7 @@ export interface Task {
   recurring: boolean
   recurring_type: RecurringType | null
   completed_at: string | null
+  sort_order: number | null
   created_at: string
   updated_at: string
 }

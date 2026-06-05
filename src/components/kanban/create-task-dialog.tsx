@@ -41,14 +41,20 @@ const taskSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
-  status: z.enum(['todo', 'in_progress', 'in_review', 'completed', 'cancelled', 'archived']),
+  status: z.enum(['backlog', 'todo', 'in_progress', 'in_review', 'completed', 'cancelled', 'archived']),
   due_date: z.string().optional(),
   estimated_duration: z.string().optional(),
 })
 
+import type { TaskStatus } from '@/types'
+
 type TaskFormValues = z.infer<typeof taskSchema>
 
-export function CreateTaskDialog() {
+interface CreateTaskDialogProps {
+  initialStatus?: TaskStatus
+}
+
+export function CreateTaskDialog({ initialStatus = 'todo' }: CreateTaskDialogProps = {}) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const addTask = useKanbanStore((state) => state.addTask)
@@ -59,7 +65,7 @@ export function CreateTaskDialog() {
       title: '',
       description: '',
       priority: 'medium',
-      status: 'todo',
+      status: initialStatus,
       due_date: '',
       estimated_duration: '',
     },
@@ -151,6 +157,7 @@ export function CreateTaskDialog() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="backlog">Backlog</SelectItem>
                         <SelectItem value="todo">To Do</SelectItem>
                         <SelectItem value="in_progress">In Progress</SelectItem>
                         <SelectItem value="in_review">In Review</SelectItem>
