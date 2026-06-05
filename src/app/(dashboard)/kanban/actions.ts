@@ -249,16 +249,16 @@ export async function updateTaskOrder(updates: { id: string; sort_order: number;
   try {
     const supabase = await createClient()
 
-    const { error } = await supabase
-      .from('tasks')
-      .upsert(
-        updates.map(u => ({ id: u.id, sort_order: u.sort_order, status: u.status })),
-        { onConflict: 'id' }
-      )
-
-    if (error) {
-      console.error('Error updating task order:', error)
-      return { error: error.message }
+    for (const update of updates) {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ sort_order: update.sort_order, status: update.status })
+        .eq('id', update.id)
+        
+      if (error) {
+        console.error('Error updating task order:', error)
+        return { error: error.message }
+      }
     }
 
     return { success: true }

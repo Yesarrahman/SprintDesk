@@ -73,8 +73,10 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove }: TaskCardPro
   }
 
   return (
-    <motion.div
-      layout
+    <>
+      <EditTaskDialog task={task} open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} />
+      <motion.div
+        layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9 }}
@@ -91,7 +93,6 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove }: TaskCardPro
         'hover:border-primary/40 dark:hover:border-primary/40'
       )}
     >
-      <EditTaskDialog task={task} open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} />
       <div className="flex justify-between items-start mb-3">
         <div className="flex gap-2 items-center">
           <span
@@ -206,5 +207,6 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove }: TaskCardPro
         </Avatar>
       </div>
     </motion.div>
+    </>
   )
 }
