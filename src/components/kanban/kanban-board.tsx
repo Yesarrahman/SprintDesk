@@ -233,6 +233,7 @@ export function KanbanBoard({ initialTasks, role = 'owner', workspaceId, isPerso
             onDeleteTask={handleDeleteTask}
             onMoveTask={handleMoveTask}
             role={role}
+            isPersonal={isPersonal}
           />
         ))}
       </div>
@@ -243,7 +244,7 @@ export function KanbanBoard({ initialTasks, role = 'owner', workspaceId, isPerso
       }}>
         {activeTask ? (
             <div className="cursor-grabbing">
-                <TaskCard task={activeTask} role={role} />
+                <TaskCard task={activeTask} role={role} isPersonal={isPersonal} />
             </div>
         ) : null}
       </DragOverlay>

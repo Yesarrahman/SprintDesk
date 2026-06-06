@@ -2,7 +2,8 @@ import { CheckCircle2, Clock, ListTodo, TrendingUp, Calendar as CalendarIcon, Ar
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { fetchDashboardMetrics } from './actions'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 import { CreateTaskDialog } from '@/components/kanban/create-task-dialog'
 import { DashboardChart } from './dashboard-chart'
 
@@ -12,6 +13,23 @@ export default async function DashboardPage() {
   const { metrics } = await fetchDashboardMetrics()
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
+
+  const cookieStore = await cookies()
+  const activeWorkspaceId = cookieStore.get('activeWorkspaceId')?.value
+  let isPersonal = false
+  
+  if (user && activeWorkspaceId) {
+    const adminClient = await createAdminClient()
+    const { data: ws } = await adminClient
+      .from('workspaces')
+      .select('name, owner_id')
+      .eq('id', activeWorkspaceId)
+      .single()
+      
+    if (ws && ws.name === 'My Workspace' && ws.owner_id === user.id) {
+      isPersonal = true
+    }
+  }
 
   const hour = new Date().getHours()
   let greeting = 'Good evening'
@@ -30,7 +48,7 @@ export default async function DashboardPage() {
           </h1>
           <p className="text-slate-500 mt-1">Here&apos;s your productivity overview for today.</p>
         </div>
-        <CreateTaskDialog />
+        <CreateTaskDialog isPersonal={isPersonal} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

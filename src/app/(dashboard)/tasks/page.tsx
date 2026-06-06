@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +20,20 @@ export default async function TasksPage() {
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  let isPersonal = false
+  if (user && activeWorkspaceId) {
+    const adminClient = await createAdminClient()
+    const { data: ws } = await adminClient
+      .from('workspaces')
+      .select('name, owner_id')
+      .eq('id', activeWorkspaceId)
+      .single()
+      
+    if (ws && ws.name === 'My Workspace' && ws.owner_id === user.id) {
+      isPersonal = true
+    }
+  }
 
   let query = supabase
     .from('tasks')
@@ -60,7 +74,7 @@ export default async function TasksPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Tasks</h1>
-        <CreateTaskDialog />
+        <CreateTaskDialog isPersonal={isPersonal} />
       </div>
 
       <Card className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-white/20 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-none">

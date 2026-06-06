@@ -21,6 +21,7 @@ interface KanbanColumnProps {
   role?: string
   onDeleteTask?: (taskId: string) => void
   onMoveTask?: (taskId: string, newStatus: TaskStatus) => void
+  isPersonal?: boolean
 }
 
 const statusColors = {
@@ -33,7 +34,7 @@ const statusColors = {
   archived: 'border-slate-200 dark:border-slate-800 bg-slate-400',
 }
 
-export function KanbanColumn({ column, tasks, role = 'owner', onDeleteTask, onMoveTask }: KanbanColumnProps) {
+export function KanbanColumn({ column, tasks, role = 'owner', onDeleteTask, onMoveTask, isPersonal = false }: KanbanColumnProps) {
   const taskIds = useMemo(() => tasks.map((t) => t.id), [tasks])
 
   const { setNodeRef, isOver } = useDroppable({
@@ -67,7 +68,7 @@ export function KanbanColumn({ column, tasks, role = 'owner', onDeleteTask, onMo
       <div className="flex-1 p-3 overflow-y-auto flex flex-col gap-3 min-h-[150px]">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} role={role} onDelete={onDeleteTask} onMove={onMoveTask} />
+            <TaskCard key={task.id} task={task} role={role} onDelete={onDeleteTask} onMove={onMoveTask} isPersonal={isPersonal} />
           ))}
         </SortableContext>
         
@@ -79,7 +80,7 @@ export function KanbanColumn({ column, tasks, role = 'owner', onDeleteTask, onMo
       </div>
 
       <div className="p-3 border-t border-slate-200/50 dark:border-slate-800/50">
-        <CreateTaskDialog initialStatus={column.id} />
+        <CreateTaskDialog initialStatus={column.id} isPersonal={isPersonal} />
       </div>
     </div>
   )

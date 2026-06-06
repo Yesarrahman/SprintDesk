@@ -51,9 +51,10 @@ interface EditTaskDialogProps {
   task: Task
   open: boolean
   onOpenChange: (open: boolean) => void
+  isPersonal?: boolean
 }
 
-export function EditTaskDialog({ task, open, onOpenChange }: EditTaskDialogProps) {
+export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }: EditTaskDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const updateTask = useKanbanStore((state) => state.updateTask)
 
@@ -165,7 +166,7 @@ export function EditTaskDialog({ task, open, onOpenChange }: EditTaskDialogProps
                         <SelectItem value="backlog">Backlog</SelectItem>
                         <SelectItem value="todo">To Do</SelectItem>
                         <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="in_review">In Review</SelectItem>
+                        {!isPersonal && <SelectItem value="in_review">In Review</SelectItem>}
                         <SelectItem value="completed">Completed</SelectItem>
                       </SelectContent>
                     </Select>

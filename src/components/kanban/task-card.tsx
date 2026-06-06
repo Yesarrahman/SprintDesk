@@ -27,6 +27,7 @@ interface TaskCardProps {
   role?: string
   onDelete?: (taskId: string) => void
   onMove?: (taskId: string, newStatus: TaskStatus) => void
+  isPersonal?: boolean
 }
 
 const priorityBgColors = {
@@ -36,7 +37,7 @@ const priorityBgColors = {
   urgent: 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400',
 }
 
-export function TaskCard({ task, role = 'owner', onDelete, onMove }: TaskCardProps) {
+export function TaskCard({ task, role = 'owner', onDelete, onMove, isPersonal = false }: TaskCardProps) {
   const {
     setNodeRef,
     attributes,
@@ -74,7 +75,7 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove }: TaskCardPro
 
   return (
     <>
-      <EditTaskDialog task={task} open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} />
+      <EditTaskDialog task={task} open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} isPersonal={isPersonal} />
       <motion.div
         layout
       initial={{ opacity: 0, y: 10 }}
@@ -141,7 +142,7 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove }: TaskCardPro
                   In Progress
                 </DropdownMenuItem>
               )}
-              {task.status !== 'in_review' && (
+              {!isPersonal && task.status !== 'in_review' && (
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove?.(task.id, 'in_review'); }}>
                   In Review
                 </DropdownMenuItem>

@@ -66,7 +66,7 @@ export default async function KanbanPage() {
         
         <div className="flex items-center gap-2">
           {!isPersonal && <KanbanActions role={role} workspaceId={activeWorkspaceId!} />}
-          {role !== 'member' && <CreateTaskDialog />}
+          {role !== 'member' && <CreateTaskDialog isPersonal={isPersonal} />}
         </div>
       </div>
       

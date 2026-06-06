@@ -52,9 +52,10 @@ type TaskFormValues = z.infer<typeof taskSchema>
 
 interface CreateTaskDialogProps {
   initialStatus?: TaskStatus
+  isPersonal?: boolean
 }
 
-export function CreateTaskDialog({ initialStatus = 'todo' }: CreateTaskDialogProps = {}) {
+export function CreateTaskDialog({ initialStatus = 'todo', isPersonal = false }: CreateTaskDialogProps = {}) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const addTask = useKanbanStore((state) => state.addTask)
@@ -160,7 +161,7 @@ export function CreateTaskDialog({ initialStatus = 'todo' }: CreateTaskDialogPro
                         <SelectItem value="backlog">Backlog</SelectItem>
                         <SelectItem value="todo">To Do</SelectItem>
                         <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="in_review">In Review</SelectItem>
+                        {!isPersonal && <SelectItem value="in_review">In Review</SelectItem>}
                         <SelectItem value="completed">Completed</SelectItem>
                       </SelectContent>
                     </Select>
