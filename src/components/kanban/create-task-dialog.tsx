@@ -44,6 +44,7 @@ const taskSchema = z.object({
   status: z.enum(['backlog', 'todo', 'in_progress', 'in_review', 'completed', 'cancelled', 'archived']),
   due_date: z.string().optional(),
   estimated_duration: z.string().optional(),
+  story_points: z.string().optional(),
 })
 
 import type { TaskStatus } from '@/types'
@@ -69,6 +70,7 @@ export function CreateTaskDialog({ initialStatus = 'todo', isPersonal = false }:
       status: initialStatus,
       due_date: '',
       estimated_duration: '',
+      story_points: '',
     },
   })
 
@@ -81,6 +83,7 @@ export function CreateTaskDialog({ initialStatus = 'todo', isPersonal = false }:
     formData.append('status', data.status)
     if (data.due_date) formData.append('due_date', data.due_date)
     if (data.estimated_duration) formData.append('estimated_duration', data.estimated_duration)
+    if (data.story_points) formData.append('story_points', data.story_points)
 
     const result = await createTask(formData)
 
@@ -220,6 +223,21 @@ export function CreateTaskDialog({ initialStatus = 'todo', isPersonal = false }:
                   </FormItem>
                 )}
               />
+              {!isPersonal && (
+                <FormField
+                  control={form.control}
+                  name="story_points"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Story Points</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="3" {...field} className="bg-white/50 dark:bg-slate-900/50" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
             <div className="flex justify-end pt-4">
               <Button type="button" variant="outline" onClick={() => setOpen(false)} className="mr-2">

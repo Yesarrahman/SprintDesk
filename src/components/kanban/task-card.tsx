@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Calendar, Clock, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Calendar, Clock, MoreHorizontal, Trash2, CheckSquare, Tag as TagIcon, PlayCircle } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { motion } from 'framer-motion'
@@ -20,6 +20,10 @@ import { EditTaskDialog } from './edit-task-dialog'
 
 interface TaskWithProfile extends Task {
   profiles?: { full_name: string | null }
+  story_points?: number
+  subtasks_count?: number
+  completed_subtasks?: number
+  tags?: { id: string; name: string; color: string }[]
 }
 
 interface TaskCardProps {
@@ -104,6 +108,11 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove, isPersonal = 
           >
             {task.priority}
           </span>
+          {!isPersonal && task.story_points && (
+             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+               {task.story_points}
+             </span>
+          )}
         </div>
         
         {/* We stop propagation here so dropdown click doesn't trigger drag */}
@@ -178,6 +187,17 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove, isPersonal = 
         {task.title}
       </h4>
       
+      {!isPersonal && task.tags && task.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+           {task.tags.map(tag => (
+             <span key={tag.id} className="text-[10px] flex items-center gap-1 font-medium px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tag.color || '#6366f1' }} />
+                {tag.name}
+             </span>
+           ))}
+        </div>
+      )}
+
       {task.description && (
         <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-4">
           {task.description}
@@ -192,9 +212,18 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove, isPersonal = 
               <span>{format(new Date(task.due_date), 'MMM d')}</span>
             </div>
           )}
+          {!isPersonal && task.subtasks_count !== undefined && task.subtasks_count > 0 && (
+             <div className={cn(
+                "flex items-center gap-1 px-1.5 py-1 rounded-md transition-colors",
+                task.completed_subtasks === task.subtasks_count ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30" : "text-slate-500 bg-slate-50 dark:bg-slate-800"
+             )}>
+                <CheckSquare className="h-3 w-3" />
+                <span>{task.completed_subtasks}/{task.subtasks_count}</span>
+             </div>
+          )}
           {task.estimated_duration && (
-            <div className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
+            <div className="flex items-center gap-1 hover:text-indigo-600 transition-colors" title="Start Timer">
+              <PlayCircle className="h-3.5 w-3.5 cursor-pointer" />
               <span>{task.estimated_duration}m</span>
             </div>
           )}

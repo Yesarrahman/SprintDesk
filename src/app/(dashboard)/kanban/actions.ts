@@ -121,6 +121,7 @@ export async function createTask(formData: FormData) {
     const priority = formData.get('priority') as string
     const dueDate = formData.get('due_date') as string
     const estimatedDuration = formData.get('estimated_duration') as string
+    const storyPoints = formData.get('story_points') as string
     const status = formData.get('status') as TaskStatus || 'todo'
 
     if (!title) {
@@ -135,6 +136,7 @@ export async function createTask(formData: FormData) {
       status,
       due_date: dueDate ? new Date(dueDate).toISOString() : null,
       estimated_duration: estimatedDuration ? parseInt(estimatedDuration) : null,
+      story_points: storyPoints ? parseInt(storyPoints) : null,
       created_by: user.id,
       assigned_to: user.id, // For now, assign to self
     }

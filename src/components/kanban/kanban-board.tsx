@@ -44,6 +44,8 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
   const { tasks, setTasks, moveTask, removeTask, columns, setColumns } = useKanbanStore()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [isMounted, setIsMounted] = useState(false)
+  const [viewMode, setViewMode] = useState<'board' | 'swimlanes'>('board')
+  const [isSprintPlanning, setIsSprintPlanning] = useState(false)
 
   const columns = isPersonal ? ALL_COLUMNS.filter(c => c.id !== 'in_review') : ALL_COLUMNS
 
@@ -233,24 +235,111 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-6 h-[calc(100vh-12rem)] overflow-x-auto pb-4">
-        {columns.map((col) => (
-          <KanbanColumn
-            key={col.id}
-            column={col}
-            tasks={tasks.filter((t) => t.status === col.id)}
-            onDeleteTask={handleDeleteTask}
-            onMoveTask={handleMoveTask}
-            role={role}
-            isPersonal={isPersonal}
-          />
-        ))}
-        {isPersonal && (
-          <div className="flex-shrink-0 w-80">
-            <button className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors">
-               Add Column
+      <div className="flex items-center justify-between mb-4 px-1">
+        {!isPersonal && (
+          <div className="flex items-center gap-4 bg-white/50 dark:bg-slate-900/50 p-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
+            <button
+              onClick={() => { setViewMode('board'); setIsSprintPlanning(false); }}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'board' && !isSprintPlanning ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            >
+              Kanban Board
+            </button>
+            <button
+              onClick={() => { setViewMode('swimlanes'); setIsSprintPlanning(false); }}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'swimlanes' && !isSprintPlanning ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            >
+              Swimlanes (By Assignee)
+            </button>
+            <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1" />
+            <button
+              onClick={() => setIsSprintPlanning(true)}
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${isSprintPlanning ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            >
+              Sprint Planning
             </button>
           </div>
+        )}
+      </div>
+
+      <div className="flex gap-6 h-[calc(100vh-16rem)] overflow-x-auto pb-4">
+        {isSprintPlanning ? (
+          <div className="flex gap-6 w-full">
+            <div className="flex-1 bg-slate-50 dark:bg-slate-900/40 rounded-xl p-4 border border-slate-200 dark:border-slate-800">
+              <h3 className="font-bold text-lg mb-4">Product Backlog</h3>
+              <p className="text-sm text-slate-500 mb-4">Drag tasks from the backlog into the Active Sprint.</p>
+              <KanbanColumn
+                column={{ id: 'backlog', title: 'Backlog Tasks' }}
+                tasks={tasks.filter(t => t.status === 'backlog')}
+                onDeleteTask={handleDeleteTask}
+                onMoveTask={handleMoveTask}
+                role={role}
+                isPersonal={isPersonal}
+              />
+            </div>
+            <div className="flex-1 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl p-4 border border-indigo-100 dark:border-indigo-900/30">
+              <h3 className="font-bold text-lg mb-4 text-indigo-900 dark:text-indigo-100">Active Sprint</h3>
+              <p className="text-sm text-indigo-600/70 dark:text-indigo-400/70 mb-4">Tasks committed for this sprint.</p>
+              <div className="flex gap-4 overflow-x-auto">
+                {columns.filter(c => c.id !== 'backlog').map((col) => (
+                  <KanbanColumn
+                    key={col.id}
+                    column={col}
+                    tasks={tasks.filter((t) => t.status === col.id)}
+                    onDeleteTask={handleDeleteTask}
+                    onMoveTask={handleMoveTask}
+                    role={role}
+                    isPersonal={isPersonal}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : viewMode === 'swimlanes' ? (
+          <div className="flex flex-col gap-8 w-full min-w-max">
+            {['unassigned', ...Array.from(new Set(tasks.map(t => t.assigned_to).filter(Boolean)))].map(assigneeId => {
+              const assigneeTasks = tasks.filter(t => (assigneeId === 'unassigned' ? !t.assigned_to : t.assigned_to === assigneeId))
+              if (assigneeTasks.length === 0) return null
+              return (
+                <div key={assigneeId} className="flex flex-col gap-2 border-b border-slate-200 dark:border-slate-800 pb-8">
+                  <h3 className="font-semibold text-slate-700 dark:text-slate-300 sticky left-0">{assigneeId === 'unassigned' ? 'Unassigned' : `Assignee: ${assigneeTasks[0].profiles?.full_name || 'User'}`}</h3>
+                  <div className="flex gap-6">
+                    {columns.map((col) => (
+                      <KanbanColumn
+                        key={`${assigneeId}-${col.id}`}
+                        column={col}
+                        tasks={assigneeTasks.filter((t) => t.status === col.id)}
+                        onDeleteTask={handleDeleteTask}
+                        onMoveTask={handleMoveTask}
+                        role={role}
+                        isPersonal={isPersonal}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <>
+            {columns.map((col) => (
+              <KanbanColumn
+                key={col.id}
+                column={col}
+                tasks={tasks.filter((t) => t.status === col.id)}
+                onDeleteTask={handleDeleteTask}
+                onMoveTask={handleMoveTask}
+                role={role}
+                isPersonal={isPersonal}
+              />
+            ))}
+            {isPersonal && (
+              <div className="flex-shrink-0 w-80">
+                <button className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors">
+                  Add Column
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
