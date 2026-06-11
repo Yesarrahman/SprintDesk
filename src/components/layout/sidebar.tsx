@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, CheckSquare, KanbanSquare, CalendarDays, Users, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, KanbanSquare, CalendarDays, Users, Settings, LogOut, ChevronLeft, ChevronRight, Inbox } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/ui-store'
@@ -13,6 +13,7 @@ import { WorkspaceSelector } from './workspace-selector'
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
+  { name: 'Capture Inbox', href: '/inbox', icon: Inbox },
   { name: 'Kanban Board', href: '/kanban', icon: KanbanSquare },
   { name: 'Calendar', href: '/calendar', icon: CalendarDays },
   { name: 'Team', href: '/team', icon: Users },

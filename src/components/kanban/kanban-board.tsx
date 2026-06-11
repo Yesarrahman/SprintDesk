@@ -34,19 +34,28 @@ const ALL_COLUMNS: { id: TaskStatus; title: string }[] = [
 
 interface KanbanBoardProps {
   initialTasks: Task[]
+  initialColumns: { id: string; title: string; order_index: number }[]
   role?: string
   workspaceId: string
   isPersonal?: boolean
 }
 
-export function KanbanBoard({ initialTasks, role = 'owner', workspaceId, isPersonal = false }: KanbanBoardProps) {
-  const { tasks, setTasks, moveTask, removeTask } = useKanbanStore()
+export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', workspaceId, isPersonal = false }: KanbanBoardProps) {
+  const { tasks, setTasks, moveTask, removeTask, columns, setColumns } = useKanbanStore()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [isMounted, setIsMounted] = useState(false)
 
   const columns = isPersonal ? ALL_COLUMNS.filter(c => c.id !== 'in_review') : ALL_COLUMNS
 
   useEffect(() => {
+    // Set dynamic columns or fallback to default
+    if (initialColumns && initialColumns.length > 0) {
+      setColumns(initialColumns)
+    } else {
+      const defaultColumns = isPersonal ? ALL_COLUMNS.filter(c => c.id !== 'in_review') : ALL_COLUMNS
+      setColumns(defaultColumns.map((c, i) => ({ ...c, order_index: i })))
+    }
+
     // Sort tasks by sort_order
     const sorted = [...initialTasks].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
     setTasks(sorted)
@@ -236,6 +245,13 @@ export function KanbanBoard({ initialTasks, role = 'owner', workspaceId, isPerso
             isPersonal={isPersonal}
           />
         ))}
+        {isPersonal && (
+          <div className="flex-shrink-0 w-80">
+            <button className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors">
+               Add Column
+            </button>
+          </div>
+        )}
       </div>
 
       <DragOverlay dropAnimation={{

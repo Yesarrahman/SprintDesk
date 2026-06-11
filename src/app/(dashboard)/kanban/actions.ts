@@ -313,3 +313,56 @@ export async function deleteTask(taskId: string) {
     return { error: 'An unexpected error occurred while deleting the task' }
   }
 }
+
+export async function fetchKanbanColumns(workspaceId: string, isPersonal: boolean = false) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    let query = supabase.from('kanban_columns').select('*').eq('workspace_id', workspaceId).order('order_index', { ascending: true })
+    if (isPersonal && user) {
+        query = query.eq('user_id', user.id)
+    }
+
+    const { data, error } = await query
+    if (error) return { error: error.message }
+    return { columns: data }
+  } catch (err) {
+    return { error: 'Failed to fetch columns' }
+  }
+}
+
+export async function createKanbanColumn(workspaceId: string, title: string, orderIndex: number, isPersonal: boolean = false) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    const { data, error } = await supabase
+      .from('kanban_columns')
+      .insert({
+        workspace_id: workspaceId,
+        user_id: isPersonal && user ? user.id : null,
+        title,
+        order_index: orderIndex
+      })
+      .select()
+      .single()
+
+    if (error) return { error: error.message }
+    return { column: data }
+  } catch (err) {
+    return { error: 'Failed to create column' }
+  }
+}
+
+export async function updateColumnOrder(updates: { id: string; order_index: number }[]) {
+  try {
+    const supabase = await createClient()
+    for (const update of updates) {
+      await supabase.from('kanban_columns').update({ order_index: update.order_index }).eq('id', update.id)
+    }
+    return { success: true }
+  } catch (err) {
+    return { error: 'Failed to update column order' }
+  }
+}

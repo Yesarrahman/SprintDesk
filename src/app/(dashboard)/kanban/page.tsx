@@ -1,4 +1,4 @@
-import { fetchTasks } from './actions'
+import { fetchTasks, fetchKanbanColumns } from './actions'
 import { KanbanBoard } from '@/components/kanban/kanban-board'
 import { CreateTaskDialog } from '@/components/kanban/create-task-dialog'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
@@ -41,8 +41,11 @@ export default async function KanbanPage() {
       if (ws.name === 'My Workspace' && ws.owner_id === user.id) {
         isPersonal = true
       }
+      }
     }
   }
+
+  const { columns } = activeWorkspaceId ? await fetchKanbanColumns(activeWorkspaceId, isPersonal) : { columns: [] }
 
   if (error) {
     return (
@@ -70,7 +73,7 @@ export default async function KanbanPage() {
         </div>
       </div>
       
-      <KanbanBoard initialTasks={tasks || []} role={role} workspaceId={activeWorkspaceId!} isPersonal={isPersonal} />
+      <KanbanBoard initialTasks={tasks || []} initialColumns={columns || []} role={role} workspaceId={activeWorkspaceId!} isPersonal={isPersonal} />
     </div>
   )
 }
