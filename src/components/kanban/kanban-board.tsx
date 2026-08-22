@@ -47,8 +47,6 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
   const [viewMode, setViewMode] = useState<'board' | 'swimlanes'>('board')
   const [isSprintPlanning, setIsSprintPlanning] = useState(false)
 
-  const columns = isPersonal ? ALL_COLUMNS.filter(c => c.id !== 'in_review') : ALL_COLUMNS
-
   useEffect(() => {
     // Set dynamic columns or fallback to default
     if (initialColumns && initialColumns.length > 0) {
