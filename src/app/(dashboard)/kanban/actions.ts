@@ -4,6 +4,31 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import type { Task, TaskStatus } from '@/types'
 
+async function executeAutomations(workspaceId: string, taskId: string, triggerType: string, triggerValue: string) {
+  try {
+    const supabase = await createClient()
+    const { data: automations } = await supabase
+      .from('automations')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .eq('is_active', true)
+      .eq('trigger_type', triggerType)
+      .eq('trigger_value', triggerValue)
+
+    if (automations && automations.length > 0) {
+      for (const rule of automations) {
+        if (rule.action_type === 'assign_to') {
+          await supabase.from('tasks').update({ assigned_to: rule.action_value === 'unassigned' ? null : rule.action_value }).eq('id', taskId)
+        } else if (rule.action_type === 'set_priority') {
+          await supabase.from('tasks').update({ priority: rule.action_value }).eq('id', taskId)
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Automation engine error:', error)
+  }
+}
+
 export async function fetchTasks() {
   try {
     const supabase = await createClient()
@@ -230,14 +255,21 @@ export async function updateTaskStatus(taskId: string, newStatus: TaskStatus) {
   try {
     const supabase = await createClient()
 
-    const { error } = await supabase
+    const { error, data } = await supabase
       .from('tasks')
       .update({ status: newStatus })
       .eq('id', taskId)
+      .select('workspace_id')
+      .single()
 
     if (error) {
       console.error('Error updating task status:', error)
       return { error: error.message }
+    }
+
+    if (data?.workspace_id) {
+      // Fire and forget automation engine
+      executeAutomations(data.workspace_id, taskId, 'status_changed', newStatus)
     }
 
     return { success: true }

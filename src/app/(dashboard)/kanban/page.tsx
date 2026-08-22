@@ -41,7 +41,6 @@ export default async function KanbanPage() {
       if (ws.name === 'My Workspace' && ws.owner_id === user.id) {
         isPersonal = true
       }
-      }
     }
   }
 

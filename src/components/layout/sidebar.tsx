@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, CheckSquare, KanbanSquare, CalendarDays, Users, Settings, LogOut, ChevronLeft, ChevronRight, Inbox } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, KanbanSquare, CalendarDays, Users, Settings, LogOut, ChevronLeft, ChevronRight, Inbox, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/ui-store'
@@ -17,6 +17,7 @@ const navigation = [
   { name: 'Kanban Board', href: '/kanban', icon: KanbanSquare },
   { name: 'Calendar', href: '/calendar', icon: CalendarDays },
   { name: 'Team', href: '/team', icon: Users },
+  { name: 'Automations', href: '/automations', icon: Zap },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
