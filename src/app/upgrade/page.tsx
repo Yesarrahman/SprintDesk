@@ -6,10 +6,20 @@ import { Check, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
+import { createCheckoutSession } from './actions'
+import { useState } from 'react'
+
 export default function UpgradePage() {
-  const handleUpgrade = (tier: string) => {
-    // In a real app, this redirects to Stripe Checkout
-    toast.success(`Mock: Successfully upgraded to ${tier}!`)
+  const [loading, setLoading] = useState<string | null>(null)
+
+  const handleUpgrade = async (tier: string) => {
+    try {
+      setLoading(tier)
+      await createCheckoutSession(tier)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to initiate checkout. Is Stripe configured?')
+      setLoading(null)
+    }
   }
 
   return (
@@ -67,7 +77,9 @@ export default function UpgradePage() {
             </ul>
           </CardContent>
           <CardFooter>
-            <Button onClick={() => handleUpgrade('pro')} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">Upgrade to Pro</Button>
+            <Button onClick={() => handleUpgrade('pro')} disabled={loading !== null} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+              {loading === 'pro' ? 'Redirecting...' : 'Upgrade to Pro'}
+            </Button>
           </CardFooter>
         </Card>
 
@@ -87,7 +99,9 @@ export default function UpgradePage() {
             </ul>
           </CardContent>
           <CardFooter>
-            <Button onClick={() => handleUpgrade('enterprise')} className="w-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200">Upgrade to Enterprise</Button>
+            <Button onClick={() => handleUpgrade('enterprise')} disabled={loading !== null} className="w-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200">
+              {loading === 'enterprise' ? 'Redirecting...' : 'Upgrade to Enterprise'}
+            </Button>
           </CardFooter>
         </Card>
       </div>
