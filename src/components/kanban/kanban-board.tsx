@@ -281,7 +281,7 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
                 {columns.filter(c => c.id !== 'backlog').map((col) => (
                   <KanbanColumn
                     key={col.id}
-                    column={col}
+                    column={col as any}
                     tasks={tasks.filter((t) => t.status === col.id)}
                     onDeleteTask={handleDeleteTask}
                     onMoveTask={handleMoveTask}
@@ -304,7 +304,7 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
                     {columns.map((col) => (
                       <KanbanColumn
                         key={`${assigneeId}-${col.id}`}
-                        column={col}
+                        column={col as any}
                         tasks={assigneeTasks.filter((t) => t.status === col.id)}
                         onDeleteTask={handleDeleteTask}
                         onMoveTask={handleMoveTask}
@@ -322,7 +322,7 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
             {columns.map((col) => (
               <KanbanColumn
                 key={col.id}
-                column={col}
+                column={col as any}
                 tasks={tasks.filter((t) => t.status === col.id)}
                 onDeleteTask={handleDeleteTask}
                 onMoveTask={handleMoveTask}

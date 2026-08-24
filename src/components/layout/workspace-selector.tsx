@@ -65,11 +65,9 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
     await setActiveWorkspaceCookie(workspace.id)
     toast.success(`Switched to ${workspace.name}`)
     
-    if (window.location.pathname === '/dashboard') {
-      router.push('/kanban')
-    } else {
-      router.refresh()
-    }
+    // Always navigate to dashboard — it will render the appropriate 
+    // Personal or Team dashboard based on the active workspace
+    router.push('/dashboard')
   }
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
@@ -92,7 +90,9 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
       // Expand the sidebar and workspaces list if not already
       setSidebarOpen(true)
       setIsExpanded(true)
-      router.refresh()
+      
+      // Navigate to the Kanban board so user can start creating tasks immediately
+      router.push('/kanban')
     }
   }
 

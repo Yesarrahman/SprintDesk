@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -55,9 +56,9 @@ export function AutomationsClient({
             Upgrade to the <strong>Enterprise Tier</strong> to create powerful "If THIS then THAT" rules. Automatically assign tasks, change priorities, and move items across the board based on custom triggers.
           </p>
           {role === 'owner' && (
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" asChild>
-              <a href="/upgrade">Upgrade to Enterprise</a>
-            </Button>
+            <Link href="/upgrade" className="inline-flex shrink-0 items-center justify-center rounded-lg text-sm font-medium transition-all bg-indigo-600 hover:bg-indigo-700 text-white h-8 px-4">
+              Upgrade to Enterprise
+            </Link>
           )}
         </CardContent>
       </Card>

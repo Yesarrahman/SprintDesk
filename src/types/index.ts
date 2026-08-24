@@ -44,6 +44,9 @@ export interface Task {
   recurring_type: RecurringType | null
   completed_at: string | null
   sort_order: number | null
+  story_points: number | null
+  epic_id?: string | null
+  profiles?: any
   created_at: string
   updated_at: string
 }

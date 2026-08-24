@@ -20,7 +20,6 @@ import { EditTaskDialog } from './edit-task-dialog'
 
 interface TaskWithProfile extends Task {
   profiles?: { full_name: string | null }
-  story_points?: number
   subtasks_count?: number
   completed_subtasks?: number
   tags?: { id: string; name: string; color: string }[]

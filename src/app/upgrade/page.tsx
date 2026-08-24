@@ -6,6 +6,9 @@ import { Check, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+
 import { createCheckoutSession } from './actions'
 import { useState } from 'react'
 
@@ -25,9 +28,15 @@ export default function UpgradePage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0A192F] py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
       <div className="w-full max-w-7xl mb-8 flex justify-start">
-        <Button variant="ghost" asChild className="text-slate-500 hover:text-slate-900 dark:hover:text-white">
-          <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard</Link>
-        </Button>
+        <Link 
+          href="/dashboard" 
+          className={cn(
+            buttonVariants({ variant: "ghost" }), 
+            "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+          )}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
+        </Link>
       </div>
 
       <div className="text-center mb-16">

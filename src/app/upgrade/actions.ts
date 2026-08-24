@@ -7,7 +7,7 @@ import { redirect } from 'next/navigation'
 
 // We expect STRIPE_SECRET_KEY to be set in .env.local (can be a test key: sk_test_...)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-01-27.acacia',
+  apiVersion: '2026-07-29.dahlia',
 })
 
 export async function createCheckoutSession(tier: string) {
