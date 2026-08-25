@@ -111,7 +111,8 @@ export function CalendarClient({ tasks }: CalendarClientProps) {
                 <div key={`empty-${i}`} className="bg-white dark:bg-slate-950 min-h-[120px] p-2 opacity-50" />
               ))}
               {days.map((day) => {
-                const dateStr = new Date(currentYear, currentMonth, day).toISOString().split('T')[0]
+                const d = new Date(currentYear, currentMonth, day)
+                const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
                 const dayTasks = tasks.filter(t => t.due_date && t.due_date.startsWith(dateStr))
                 const isToday = day === new Date().getDate() && currentMonth === new Date().getMonth()
 
@@ -148,7 +149,7 @@ export function CalendarClient({ tasks }: CalendarClientProps) {
             return (
               <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 h-[600px]">
                 {weekDays.map((date, i) => {
-                  const dateStr = date.toISOString().split('T')[0];
+                  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                   const dayTasks = tasks.filter(t => t.due_date && t.due_date.startsWith(dateStr));
                   const isToday = date.toDateString() === new Date().toDateString();
                   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -181,7 +182,7 @@ export function CalendarClient({ tasks }: CalendarClientProps) {
           })()}
 
           {view === 'day' && (() => {
-            const dateStr = currentDate.toISOString().split('T')[0];
+            const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
             const dayTasks = tasks.filter(t => t.due_date && t.due_date.startsWith(dateStr));
             const isToday = currentDate.toDateString() === new Date().toDateString();
 

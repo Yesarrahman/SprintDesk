@@ -117,7 +117,7 @@ export async function removeMember(userIdToRemove: string) {
   }
 
   // 3. Remove the member
-  const { error } = await supabase
+  const { error } = await adminClient
     .from('workspace_members')
     .delete()
     .eq('workspace_id', currentMember.workspace_id)
