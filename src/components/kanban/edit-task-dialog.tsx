@@ -43,6 +43,7 @@ const taskSchema = z.object({
   status: z.enum(['backlog', 'todo', 'in_progress', 'in_review', 'completed', 'cancelled', 'archived']),
   due_date: z.string().optional(),
   estimated_duration: z.string().optional(),
+  assigned_to: z.string().optional(),
 })
 
 type TaskFormValues = z.infer<typeof taskSchema>
@@ -56,7 +57,18 @@ interface EditTaskDialogProps {
 
 export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }: EditTaskDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [teamMembers, setTeamMembers] = useState<{user_id: string, full_name: string}[]>([])
   const updateTask = useKanbanStore((state) => state.updateTask)
+
+  useEffect(() => {
+    if (!isPersonal && open) {
+      import('@/app/(dashboard)/kanban/actions').then(m => {
+        m.fetchTeamMembers().then(res => {
+          if (res.members) setTeamMembers(res.members)
+        })
+      })
+    }
+  }, [isPersonal, open])
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
@@ -67,6 +79,7 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
       status: task.status,
       due_date: task.due_date ? task.due_date.split('T')[0] : '',
       estimated_duration: task.estimated_duration ? task.estimated_duration.toString() : '',
+      assigned_to: task.assigned_to || 'unassigned',
     },
   })
 
@@ -79,6 +92,7 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
         status: task.status,
         due_date: task.due_date ? task.due_date.split('T')[0] : '',
         estimated_duration: task.estimated_duration ? task.estimated_duration.toString() : '',
+        assigned_to: task.assigned_to || 'unassigned',
       })
     }
   }, [open, task, form])
@@ -92,6 +106,8 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
     formData.append('status', data.status)
     if (data.due_date) formData.append('due_date', data.due_date)
     if (data.estimated_duration) formData.append('estimated_duration', data.estimated_duration)
+    if (data.assigned_to && data.assigned_to !== 'unassigned') formData.append('assigned_to', data.assigned_to)
+    if (data.assigned_to === 'unassigned') formData.append('assigned_to', 'unassigned')
 
     const result = await updateTaskDetails(task.id, formData)
 
@@ -198,6 +214,31 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
                 )}
               />
             </div>
+            {!isPersonal && (
+              <FormField
+                control={form.control}
+                name="assigned_to"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assignee</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || 'unassigned'}>
+                      <FormControl>
+                        <SelectTrigger className="bg-white/50 dark:bg-slate-900/50">
+                          <SelectValue placeholder="Select assignee" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {teamMembers.map(m => (
+                          <SelectItem key={m.user_id} value={m.user_id}>{m.full_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}

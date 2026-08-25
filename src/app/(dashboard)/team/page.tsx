@@ -15,7 +15,10 @@ export default async function TeamPage() {
   const cookieStore = await cookies()
   const activeWorkspaceId = cookieStore.get('activeWorkspaceId')?.value
 
-  let query = supabase
+  const { createAdminClient } = await import('@/lib/supabase/server')
+  const adminClient = await createAdminClient()
+
+  let query = adminClient
     .from('workspace_members')
     .select('workspace_id, role')
     .eq('user_id', user.id)
@@ -41,7 +44,7 @@ export default async function TeamPage() {
 
   // Fetch all members of this workspace
   // We need to join with profiles to get the full name
-  const { data: members, error } = await supabase
+  const { data: members, error } = await adminClient
     .from('workspace_members')
     .select(`
       id,

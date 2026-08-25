@@ -57,7 +57,7 @@ export function Header() {
           <Menu className="h-5 w-5" />
         </Button>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-indigo-50/50 dark:bg-indigo-950/30 px-3 py-1.5 rounded-full border border-indigo-100/50 dark:border-indigo-900/30 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+          <div className="flex items-center gap-2 bg-indigo-50/50 dark:bg-indigo-950/30 px-3 py-1.5 rounded-full border border-indigo-100/50 dark:border-indigo-900/30 text-xs font-semibold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
             <Building2 className="h-3.5 w-3.5" />
             <span>{activeWorkspaceName}</span>
           </div>

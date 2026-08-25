@@ -89,15 +89,18 @@ export function InboxClient({ initialItems }: { initialItems: any[] }) {
       try {
         const isPersonal = workspaces.find(w => w.id === selectedWorkspaceId)?.name === 'My Workspace'
         const res = await fetchKanbanColumns(selectedWorkspaceId, isPersonal)
-        if (res.columns) {
+        if (res.columns && res.columns.length > 0) {
           setColumns(res.columns)
-          if (res.columns.length > 0) {
-            // Find "todo" or default to first
-            const todoCol = res.columns.find(c => c.id === 'todo')
-            setSelectedColumnId(todoCol ? todoCol.id : res.columns[0].id)
-          } else {
-            setSelectedColumnId('')
-          }
+          const todoCol = res.columns.find(c => c.id === 'todo')
+          setSelectedColumnId(todoCol ? todoCol.id : res.columns[0].id)
+        } else {
+          // Fallback to default columns
+          const defaultCols = isPersonal 
+            ? [{ id: 'todo', title: 'To Do' }, { id: 'in_progress', title: 'In Progress' }, { id: 'completed', title: 'Completed' }, { id: 'backlog', title: 'Backlog' }]
+            : [{ id: 'todo', title: 'To Do' }, { id: 'in_progress', title: 'In Progress' }, { id: 'in_review', title: 'In Review' }, { id: 'completed', title: 'Completed' }, { id: 'backlog', title: 'Backlog' }]
+          
+          setColumns(defaultCols as Column[])
+          setSelectedColumnId('todo')
         }
       } catch (err) {
         console.error('Failed to load columns:', err)

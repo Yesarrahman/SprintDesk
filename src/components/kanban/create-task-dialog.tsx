@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
@@ -45,6 +45,7 @@ const taskSchema = z.object({
   due_date: z.string().optional(),
   estimated_duration: z.string().optional(),
   story_points: z.string().optional(),
+  assigned_to: z.string().optional(),
 })
 
 import type { TaskStatus } from '@/types'
@@ -59,7 +60,19 @@ interface CreateTaskDialogProps {
 export function CreateTaskDialog({ initialStatus = 'todo', isPersonal = false }: CreateTaskDialogProps = {}) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [teamMembers, setTeamMembers] = useState<{user_id: string, full_name: string}[]>([])
   const addTask = useKanbanStore((state) => state.addTask)
+
+  useEffect(() => {
+    if (!isPersonal && open) {
+      import('@/app/(dashboard)/kanban/actions').then(m => {
+        m.fetchTeamMembers().then(res => {
+          if (res.members) setTeamMembers(res.members)
+        })
+      })
+    }
+  }, [isPersonal, open])
+
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
@@ -71,6 +84,7 @@ export function CreateTaskDialog({ initialStatus = 'todo', isPersonal = false }:
       due_date: '',
       estimated_duration: '',
       story_points: '',
+      assigned_to: 'unassigned',
     },
   })
 
@@ -84,6 +98,8 @@ export function CreateTaskDialog({ initialStatus = 'todo', isPersonal = false }:
     if (data.due_date) formData.append('due_date', data.due_date)
     if (data.estimated_duration) formData.append('estimated_duration', data.estimated_duration)
     if (data.story_points) formData.append('story_points', data.story_points)
+    if (data.assigned_to && data.assigned_to !== 'unassigned') formData.append('assigned_to', data.assigned_to)
+    if (data.assigned_to === 'unassigned') formData.append('assigned_to', 'unassigned')
 
     const result = await createTask(formData)
 
@@ -196,6 +212,31 @@ export function CreateTaskDialog({ initialStatus = 'todo', isPersonal = false }:
                 )}
               />
             </div>
+            {!isPersonal && (
+              <FormField
+                control={form.control}
+                name="assigned_to"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assignee</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || 'unassigned'}>
+                      <FormControl>
+                        <SelectTrigger className="bg-white/50 dark:bg-slate-900/50">
+                          <SelectValue placeholder="Select assignee" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {teamMembers.map(m => (
+                          <SelectItem key={m.user_id} value={m.user_id}>{m.full_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}

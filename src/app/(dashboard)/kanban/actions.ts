@@ -148,6 +148,7 @@ export async function createTask(formData: FormData) {
     const estimatedDuration = formData.get('estimated_duration') as string
     const storyPoints = formData.get('story_points') as string
     const status = formData.get('status') as TaskStatus || 'todo'
+    const assignedTo = formData.get('assigned_to') as string
 
     if (!title) {
       return { error: 'Task title is required' }
@@ -163,7 +164,7 @@ export async function createTask(formData: FormData) {
       estimated_duration: estimatedDuration ? parseInt(estimatedDuration) : null,
       story_points: storyPoints ? parseInt(storyPoints) : null,
       created_by: user.id,
-      assigned_to: user.id, // For now, assign to self
+      assigned_to: assignedTo === 'unassigned' ? null : (assignedTo || user.id),
     }
 
     const { data, error } = await supabase
@@ -219,6 +220,7 @@ export async function updateTaskDetails(taskId: string, formData: FormData) {
     const dueDate = formData.get('due_date') as string
     const estimatedDuration = formData.get('estimated_duration') as string
     const status = formData.get('status') as TaskStatus
+    const assignedTo = formData.get('assigned_to') as string
 
     if (!title) return { error: 'Task title is required' }
 
@@ -230,6 +232,12 @@ export async function updateTaskDetails(taskId: string, formData: FormData) {
       due_date: dueDate ? new Date(dueDate).toISOString() : null,
       estimated_duration: estimatedDuration ? parseInt(estimatedDuration) : null,
       updated_at: new Date().toISOString(),
+    }
+
+    if (assignedTo === 'unassigned') {
+      updateData.assigned_to = null
+    } else if (assignedTo) {
+      updateData.assigned_to = assignedTo
     }
 
     const { data, error } = await supabase
@@ -398,5 +406,28 @@ export async function updateColumnOrder(updates: { id: string; order_index: numb
     return { success: true }
   } catch (err) {
     return { error: 'Failed to update column order' }
+  }
+}
+
+export async function fetchTeamMembers() {
+  try {
+    const cookieStore = await cookies()
+    const activeWorkspaceId = cookieStore.get('activeWorkspaceId')?.value
+    if (!activeWorkspaceId) return { members: [] }
+    const adminClient = await createAdminClient()
+    const { data } = await adminClient
+      .from('workspace_members')
+      .select('user_id, profiles(full_name)')
+      .eq('workspace_id', activeWorkspaceId)
+    
+    const members = (data || []).map(m => ({
+      user_id: m.user_id,
+      // @ts-expect-error: Joined column
+      full_name: m.profiles?.full_name || 'User'
+    }))
+    
+    return { members }
+  } catch (err) {
+    return { members: [] }
   }
 }

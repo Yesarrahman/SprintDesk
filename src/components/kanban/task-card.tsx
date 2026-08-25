@@ -129,9 +129,11 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove, isPersonal = 
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditDialogOpen(true); }}>
                 Change Due Date
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditDialogOpen(true); }}>
-                Change Assignee
-              </DropdownMenuItem>
+              {!isPersonal && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditDialogOpen(true); }}>
+                  Change Assignee
+                </DropdownMenuItem>
+              )}
               
               <div className="h-px bg-slate-200 dark:bg-slate-800 my-1 mx-1" />
               <div className="px-2 py-1.5 text-[10px] uppercase font-semibold text-slate-500 tracking-wider">Move to</div>

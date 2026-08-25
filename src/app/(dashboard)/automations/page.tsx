@@ -48,7 +48,7 @@ export default async function AutomationsPage() {
       <AutomationsClient 
         initialAutomations={automations || []} 
         role={role as any} 
-        tier={ws?.tier || 'free'} 
+        tier={process.env.NODE_ENV === 'development' ? 'enterprise' : (ws?.tier || 'free')} 
       />
     </div>
   )

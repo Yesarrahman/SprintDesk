@@ -22,6 +22,7 @@ interface KanbanColumnProps {
   onDeleteTask?: (taskId: string) => void
   onMoveTask?: (taskId: string, newStatus: TaskStatus) => void
   isPersonal?: boolean
+  className?: string
 }
 
 const statusColors = {
@@ -34,7 +35,7 @@ const statusColors = {
   archived: 'border-slate-200 dark:border-slate-800 bg-slate-400',
 }
 
-export function KanbanColumn({ column, tasks, role = 'owner', onDeleteTask, onMoveTask, isPersonal = false }: KanbanColumnProps) {
+export function KanbanColumn({ column, tasks, role = 'owner', onDeleteTask, onMoveTask, isPersonal = false, className }: KanbanColumnProps) {
   const taskIds = useMemo(() => tasks.map((t) => t.id), [tasks])
 
   const { setNodeRef, isOver } = useDroppable({
@@ -49,7 +50,8 @@ export function KanbanColumn({ column, tasks, role = 'owner', onDeleteTask, onMo
     <div
       ref={setNodeRef}
       className={cn(
-        'flex flex-col w-[350px] shrink-0 rounded-2xl border bg-slate-100/50 dark:bg-[#0D2440]/40 backdrop-blur-2xl shadow-sm transition-all duration-300',
+        'flex flex-col shrink-0 rounded-2xl border bg-slate-100/50 dark:bg-[#0D2440]/40 backdrop-blur-2xl shadow-sm transition-all duration-300',
+        className ? className : 'w-[350px]',
         isOver ? 'bg-slate-200/50 dark:bg-[#0D2440]/60 border-primary/50 dark:border-primary/50 shadow-primary/20 shadow-md' : 'border-slate-200/50 dark:border-slate-700/50'
       )}
     >

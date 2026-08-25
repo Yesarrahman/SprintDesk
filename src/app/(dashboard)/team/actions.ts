@@ -19,7 +19,7 @@ export async function inviteMember(email: string, role: WorkspaceRole) {
   const cookieStore = await cookies()
   const activeWorkspaceId = cookieStore.get('activeWorkspaceId')?.value
 
-  let query = supabase
+  let query = adminClient
     .from('workspace_members')
     .select('workspace_id, role')
     .eq('user_id', user.id)
@@ -99,7 +99,8 @@ export async function removeMember(userIdToRemove: string) {
   const cookieStore = await cookies()
   const activeWorkspaceId = cookieStore.get('activeWorkspaceId')?.value
 
-  let query = supabase
+  const adminClient = await createAdminClient()
+  let query = adminClient
     .from('workspace_members')
     .select('workspace_id, role')
     .eq('user_id', user.id)

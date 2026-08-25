@@ -135,19 +135,105 @@ export function CalendarClient({ tasks }: CalendarClientProps) {
             </div>
           )}
 
-          {view === 'week' && (
-             <div className="text-center py-20 text-slate-500">
-                <p className="text-lg">Week View (Coming Soon)</p>
-                <p className="text-sm">Drag and drop scheduling will be available here.</p>
-             </div>
-          )}
+          {view === 'week' && (() => {
+            const startOfWeek = new Date(currentDate);
+            startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+            
+            const weekDays = Array.from({ length: 7 }, (_, i) => {
+              const d = new Date(startOfWeek);
+              d.setDate(d.getDate() + i);
+              return d;
+            });
 
-          {view === 'day' && (
-             <div className="text-center py-20 text-slate-500">
-                <p className="text-lg">Day View (Time Blocking Coming Soon)</p>
-                <p className="text-sm">Drag tasks onto specific hours to block time.</p>
-             </div>
-          )}
+            return (
+              <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 h-[600px]">
+                {weekDays.map((date, i) => {
+                  const dateStr = date.toISOString().split('T')[0];
+                  const dayTasks = tasks.filter(t => t.due_date && t.due_date.startsWith(dateStr));
+                  const isToday = date.toDateString() === new Date().toDateString();
+                  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+                  return (
+                    <div key={i} className={`bg-white dark:bg-slate-950 p-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/50 flex flex-col ${isToday ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''}`}>
+                      <div className="text-center pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
+                        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{dayNames[i]}</div>
+                        <div className={`text-lg font-bold mt-1 inline-flex items-center justify-center ${isToday ? 'bg-indigo-600 text-white w-8 h-8 rounded-full' : 'text-slate-700 dark:text-slate-300'}`}>
+                          {date.getDate()}
+                        </div>
+                      </div>
+                      <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                        {dayTasks.map(task => (
+                          <div key={task.id} className="cursor-pointer">
+                            <Badge variant="outline" className={`w-full justify-start text-xs p-2 whitespace-normal h-auto ${task.status === 'completed' ? 'opacity-50 line-through' : ''} ${task.priority === 'high' || task.priority === 'urgent' ? 'border-red-200 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400' : 'bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm transition-colors'}`} title={task.title}>
+                              {task.title}
+                            </Badge>
+                          </div>
+                        ))}
+                        {dayTasks.length === 0 && (
+                          <div className="text-center py-4 text-xs text-slate-400">No tasks</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {view === 'day' && (() => {
+            const dateStr = currentDate.toISOString().split('T')[0];
+            const dayTasks = tasks.filter(t => t.due_date && t.due_date.startsWith(dateStr));
+            const isToday = currentDate.toDateString() === new Date().toDateString();
+
+            return (
+              <div className="max-w-3xl mx-auto bg-white dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800 min-h-[500px] flex flex-col shadow-sm overflow-hidden">
+                <div className={`p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between ${isToday ? 'bg-indigo-50/30 dark:bg-indigo-950/10' : ''}`}>
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+                      {currentDate.toLocaleDateString('default', { weekday: 'long' })}
+                    </h2>
+                    <p className="text-slate-500 font-medium mt-1">
+                      {currentDate.toLocaleDateString('default', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <div className="bg-slate-100 dark:bg-slate-900 px-4 py-2 rounded-full text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    {dayTasks.length} {dayTasks.length === 1 ? 'Task' : 'Tasks'}
+                  </div>
+                </div>
+                <div className="p-6 flex-1 bg-slate-50/50 dark:bg-slate-900/20">
+                  <div className="space-y-3">
+                    {dayTasks.length > 0 ? dayTasks.map(task => (
+                      <div key={task.id} className={`p-4 rounded-xl border bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center justify-between ${task.status === 'completed' ? 'opacity-60 border-slate-200 dark:border-slate-800' : 'border-slate-200 dark:border-slate-700'}`}>
+                        <div className="flex flex-col gap-1">
+                          <span className={`font-semibold text-base ${task.status === 'completed' ? 'line-through text-slate-500' : 'text-slate-800 dark:text-slate-100'}`}>
+                            {task.title}
+                          </span>
+                          {task.description && (
+                            <span className="text-sm text-slate-500 line-clamp-1">{task.description}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className="capitalize text-[10px]" variant={task.status === 'completed' ? 'secondary' : 'default'}>
+                            {task.status.replace('_', ' ')}
+                          </Badge>
+                          <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-md ${task.priority === 'urgent' || task.priority === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
+                            {task.priority}
+                          </span>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+                        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 mb-3 flex items-center justify-center">
+                          <span className="text-xl">📅</span>
+                        </div>
+                        <p>No tasks scheduled for this day</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
     </div>

@@ -35,6 +35,7 @@ export async function createCheckoutSession(tier: string) {
   const headersList = await headers()
   const origin = headersList.get('origin') || 'http://localhost:3000'
 
+  let checkoutUrl = ''
   try {
     // Create a Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
@@ -57,10 +58,14 @@ export async function createCheckoutSession(tier: string) {
     })
 
     if (session.url) {
-      redirect(session.url)
+      checkoutUrl = session.url
     }
   } catch (error: any) {
     console.error('Stripe error:', error)
     throw new Error(error.message || 'Failed to create Stripe checkout session.')
+  }
+
+  if (checkoutUrl) {
+    redirect(checkoutUrl)
   }
 }

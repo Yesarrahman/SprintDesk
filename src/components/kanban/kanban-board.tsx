@@ -272,6 +272,7 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
                 onMoveTask={handleMoveTask}
                 role={role}
                 isPersonal={isPersonal}
+                className="w-full h-[calc(100%-3rem)]"
               />
             </div>
             <div className="flex-1 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl p-4 border border-indigo-100 dark:border-indigo-900/30">
@@ -332,7 +333,28 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
             ))}
             {isPersonal && (
               <div className="flex-shrink-0 w-80">
-                <button className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors">
+                <button 
+                  onClick={async () => {
+                    const title = window.prompt('Enter column title:')
+                    if (!title) return
+                    const newId = title.toLowerCase().replace(/[^a-z0-9]/g, '_')
+                    const newCol = { id: newId, title, order_index: columns.length }
+                    setColumns([...columns, newCol])
+                    
+                    try {
+                      const { createKanbanColumn } = await import('@/app/(dashboard)/kanban/actions')
+                      const result = await createKanbanColumn(workspaceId, title, columns.length, true)
+                      if (result?.error) {
+                        toast.error('Failed to create column')
+                      } else {
+                        toast.success('Column added')
+                      }
+                    } catch (e) {
+                      toast.error('Error adding column')
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors"
+                >
                   Add Column
                 </button>
               </div>
