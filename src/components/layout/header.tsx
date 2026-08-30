@@ -9,6 +9,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuth } from '@/hooks/use-auth'
 import { fetchWorkspaces } from '@/app/actions/workspace'
 
+import { SearchCommand } from './search-command'
+import { NotificationsDropdown } from './notifications-dropdown'
+
 function getInitials(name: string | null | undefined): string {
   if (!name) return '?'
   return name
@@ -23,6 +26,7 @@ export function Header() {
   const { toggleSidebar } = useUIStore()
   const { user, profile } = useAuth()
   const [activeWorkspaceName, setActiveWorkspaceName] = useState<string>('Personal Space')
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | undefined>()
 
   useEffect(() => {
     const loadActiveWorkspace = async () => {
@@ -31,6 +35,7 @@ export function Header() {
         if (res.workspaces) {
           const match = document.cookie.match(/(^| )activeWorkspaceId=([^;]+)/)
           const activeId = match ? match[2] : null
+          setActiveWorkspaceId(activeId || undefined)
           const found = res.workspaces.find(w => w.id === activeId)
           if (found) {
             setActiveWorkspaceName(found.name === 'My Workspace' ? 'Personal Space' : found.name)
@@ -42,7 +47,6 @@ export function Header() {
     }
 
     loadActiveWorkspace()
-    // Listen for cookie changes or selector events (we can simple poll every 2 seconds or just on mount)
     const interval = setInterval(loadActiveWorkspace, 2000)
     return () => clearInterval(interval)
   }, [])
@@ -62,20 +66,13 @@ export function Header() {
             <span>{activeWorkspaceName}</span>
           </div>
           <div className="max-w-xs w-full relative hidden sm:block">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-            <Input 
-              placeholder="Search tasks..." 
-              className="pl-9 h-9 bg-white/50 dark:bg-slate-900/50 border-white/20 dark:border-slate-800/50 focus-visible:ring-indigo-500/50" 
-            />
+            <SearchCommand workspaceId={activeWorkspaceId} />
           </div>
         </div>
       </div>
       
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="relative text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500"></span>
-        </Button>
+        <NotificationsDropdown />
         <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
         <div className="flex items-center gap-3">
           <div className="hidden text-right md:block">

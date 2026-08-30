@@ -114,7 +114,30 @@ export default async function DashboardPage() {
             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
               {workspaceName}
             </h1>
-            <p className="text-slate-500 mt-1">Team Command Center</p>
+            <p className="text-slate-500 mt-1 flex items-center gap-4">
+              <span>Team Command Center</span>
+              
+              {/* Avatar Group */}
+              {metrics?.teamMembers && metrics.teamMembers.length > 0 && (
+                <span className="flex items-center -space-x-2">
+                  {metrics.teamMembers.slice(0, 5).map((member: any, i: number) => (
+                    <div 
+                      key={member.id} 
+                      className="h-6 w-6 rounded-full bg-indigo-100 dark:bg-indigo-900 border-2 border-white dark:border-slate-950 flex items-center justify-center text-[10px] font-bold text-indigo-700 dark:text-indigo-300"
+                      title={member.full_name}
+                      style={{ zIndex: 10 - i }}
+                    >
+                      {member.full_name?.charAt(0) || 'U'}
+                    </div>
+                  ))}
+                  {metrics.teamMembers.length > 5 && (
+                    <div className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-950 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-300 z-0">
+                      +{metrics.teamMembers.length - 5}
+                    </div>
+                  )}
+                </span>
+              )}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/kanban" className={buttonVariants({ variant: "outline" })}>

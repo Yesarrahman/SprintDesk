@@ -223,16 +223,18 @@ export async function updateTaskDetails(taskId: string, formData: FormData) {
     const estimatedDuration = formData.get('estimated_duration') as string
     const status = formData.get('status') as TaskStatus
     const assignedTo = formData.get('assigned_to') as string
+    const recurringType = formData.get('recurring_type') as string || 'none'
 
     if (!title) return { error: 'Task title is required' }
 
-    const updateData: Partial<Task> & { started_at?: string | null, completed_at?: string | null } = {
+    const updateData: Partial<Task> & { started_at?: string | null, completed_at?: string | null, recurring_type?: string } = {
       title,
       description: description || null,
       priority: priority as Task['priority'] || 'medium',
       status: status || 'todo',
       due_date: dueDate ? new Date(dueDate).toISOString() : null,
       estimated_duration: estimatedDuration ? parseInt(estimatedDuration) : null,
+      recurring_type: recurringType,
       updated_at: new Date().toISOString(),
     }
 
@@ -286,21 +288,6 @@ export async function updateTaskStatus(taskId: string, newStatus: TaskStatus) {
       .select('workspace_id')
       .single()
 
-    if (error) {
-      console.error('Error updating task status:', error)
-      return { error: error.message }
-    }
-
-    if (data?.workspace_id) {
-      // Fire and forget automation engine
-      executeAutomations(data.workspace_id, taskId, 'status_changed', newStatus)
-    }
-
-    return { success: true }
-  } catch (err) {
-    console.error('Unexpected error in updateTaskStatus:', err)
-    return { error: 'An unexpected error occurred while updating task status' }
-  }
 }
 
 export async function updateTaskOrder(updates: { id: string; sort_order: number; status: TaskStatus }[]) {
@@ -476,16 +463,32 @@ export async function addTaskComment(taskId: string, content: string) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Unauthorized' }
-    
-    const { data, error } = await supabase
+    if (!user) throw new Error('Unauthorized')
+
+    const { data: comment, error } = await supabase
       .from('task_comments')
-      .insert({ task_id: taskId, user_id: user.id, content })
-      .select('*, profiles:user_id(full_name)')
+      .insert({
+        task_id: taskId,
+        user_id: user.id,
+        content
+      })
+      .select('*, profiles(id, full_name, avatar_url)')
       .single()
-      
+
     if (error) return { error: error.message }
-    return { comment: data }
+    
+    // Notify Assignee
+    const { data: taskData } = await supabase.from('tasks').select('assigned_to, title').eq('id', taskId).single()
+    if (taskData?.assigned_to && taskData.assigned_to !== user.id) {
+       await createNotification(
+         taskData.assigned_to, 
+         'comment', 
+         'New Comment', 
+         `${user.user_metadata?.full_name || 'Someone'} commented on "${taskData.title}"`
+       )
+    }
+
+    return { comment }
   } catch (err) {
     return { error: 'Failed to add comment' }
   }
@@ -547,4 +550,139 @@ export async function addLinkedTask(sourceTaskId: string, targetTaskId: string, 
     if (error) return { error: error.message }
     return { link: data }
   } catch (err) { return { error: 'Failed' } }
+}
+
+export async function searchTasks(query: string, workspaceId: string) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('id, title, status, priority')
+      .eq('workspace_id', workspaceId)
+      .ilike('title', `%${query}%`)
+      .limit(10)
+    
+    if (error) return { error: error.message }
+    return { tasks: data }
+  } catch (err) {
+    return { error: 'Failed to search tasks' }
+  }
+}
+
+// Helper for notifications
+export async function createNotification(userId: string, type: string, title: string, message: string, link?: string) {
+  try {
+    const supabase = await createClient()
+    await supabase.from('notifications').insert({
+      user_id: userId,
+      type,
+      title,
+      message,
+      is_read: false
+    })
+  } catch (err) {}
+}
+export async function toggleTaskTimer(taskId: string) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Unauthorized' }
+
+    // Check for an active timer
+    const { data: activeLog } = await supabase
+      .from('time_logs')
+      .select('*')
+      .eq('task_id', taskId)
+      .eq('user_id', user.id)
+      .is('end_time', null)
+      .single()
+
+    if (activeLog) {
+      // Stop timer
+      const endTime = new Date()
+      const startTime = new Date(activeLog.start_time)
+      const duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000)
+
+      const { data, error } = await supabase
+        .from('time_logs')
+        .update({ end_time: endTime.toISOString(), duration_seconds: duration })
+        .eq('id', activeLog.id)
+        .select()
+        .single()
+      
+      if (error) return { error: error.message }
+      return { status: 'stopped', log: data }
+    } else {
+      // Start timer
+      const { data, error } = await supabase
+        .from('time_logs')
+        .insert({
+          task_id: taskId,
+          user_id: user.id,
+          start_time: new Date().toISOString()
+        })
+        .select()
+        .single()
+      
+      if (error) return { error: error.message }
+      return { status: 'started', log: data }
+    }
+  } catch (err) { return { error: 'Timer error' } }
+}
+
+export async function fetchTaskTime(taskId: string) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('time_logs')
+      .select('duration_seconds, start_time, end_time, user_id')
+      .eq('task_id', taskId)
+    
+    if (error) return { totalSeconds: 0, isRunning: false }
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    let totalSeconds = 0
+    let isRunning = false
+    
+    data.forEach(log => {
+      totalSeconds += log.duration_seconds || 0
+      if (!log.end_time && log.user_id === user?.id) {
+        isRunning = true
+        // Add time elapsed so far for the active session
+        totalSeconds += Math.floor((new Date().getTime() - new Date(log.start_time).getTime()) / 1000)
+      }
+    })
+    
+    return { totalSeconds, isRunning }
+  } catch (err) {
+    return { totalSeconds: 0, isRunning: false }
+  }
+}
+export async function processRecurringTask(taskId: string) {
+  try {
+    const supabase = await createClient()
+    const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single()
+    if (!task || task.recurring_type === 'none') return
+
+    let newDueDate = new Date()
+    if (task.due_date) newDueDate = new Date(task.due_date)
+    
+    if (task.recurring_type === 'daily') newDueDate.setDate(newDueDate.getDate() + 1)
+    if (task.recurring_type === 'weekly') newDueDate.setDate(newDueDate.getDate() + 7)
+    if (task.recurring_type === 'monthly') newDueDate.setMonth(newDueDate.getMonth() + 1)
+
+    const newTask = {
+      ...task,
+      id: undefined, // remove id so it generates a new one
+      status: 'todo',
+      due_date: newDueDate.toISOString(),
+      created_at: undefined,
+      updated_at: undefined,
+      started_at: null,
+      completed_at: null
+    }
+
+    await supabase.from('tasks').insert(newTask)
+  } catch (err) {}
 }

@@ -54,3 +54,12 @@ export async function toggleAutomation(id: string, is_active: boolean) {
     return { success: true }
   } catch (err) { return { error: 'Failed' } }
 }
+
+export async function updateAutomationRule(id: string, updates: any) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('automations').update(updates).eq('id', id).select().single()
+    if (error) return { error: error.message }
+    return { automation: data }
+  } catch (err) { return { error: 'Failed' } }
+}

@@ -5,6 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { EditTaskDialog } from '@/components/kanban/edit-task-dialog'
+import { updateTaskDetails } from '@/app/(dashboard)/kanban/actions'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 import type { Task } from '@/types'
 
 interface CalendarClientProps {
@@ -13,9 +17,12 @@ interface CalendarClientProps {
 
 type ViewMode = 'month' | 'week' | 'day'
 
-export function CalendarClient({ tasks }: CalendarClientProps) {
+export function CalendarClient({ tasks: initialTasks }: CalendarClientProps) {
+  const [tasks, setTasks] = useState(initialTasks)
   const [view, setView] = useState<ViewMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const router = useRouter()
 
   const getDaysInMonth = (month: number, year: number) => {
     return new Date(year, month + 1, 0).getDate()
@@ -30,9 +37,8 @@ export function CalendarClient({ tasks }: CalendarClientProps) {
   const emptyDays = Array.from({ length: firstDayOfMonth }, (_, i) => i)
 
   const handlePrev = () => {
-    if (view === 'month') {
-      setCurrentDate(new Date(currentYear, currentMonth - 1, 1))
-    } else if (view === 'week') {
+    if (view === 'month') setCurrentDate(new Date(currentYear, currentMonth - 1, 1))
+    else if (view === 'week') {
       const newDate = new Date(currentDate)
       newDate.setDate(newDate.getDate() - 7)
       setCurrentDate(newDate)
@@ -44,9 +50,8 @@ export function CalendarClient({ tasks }: CalendarClientProps) {
   }
 
   const handleNext = () => {
-    if (view === 'month') {
-      setCurrentDate(new Date(currentYear, currentMonth + 1, 1))
-    } else if (view === 'week') {
+    if (view === 'month') setCurrentDate(new Date(currentYear, currentMonth + 1, 1))
+    else if (view === 'week') {
       const newDate = new Date(currentDate)
       newDate.setDate(newDate.getDate() + 7)
       setCurrentDate(newDate)
@@ -57,8 +62,54 @@ export function CalendarClient({ tasks }: CalendarClientProps) {
     }
   }
 
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    e.dataTransfer.setData('taskId', taskId)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault() // Necessary to allow dropping
+  }
+
+  const handleDrop = async (e: React.DragEvent, dateStr: string) => {
+    e.preventDefault()
+    const taskId = e.dataTransfer.getData('taskId')
+    if (!taskId) return
+    
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, due_date: dateStr + 'T00:00:00Z' } : t))
+    
+    const formData = new FormData()
+    formData.append('due_date', dateStr)
+    const task = tasks.find(t => t.id === taskId)
+    if (task) {
+        formData.append('title', task.title)
+        formData.append('status', task.status)
+        formData.append('priority', task.priority)
+    }
+    
+    const res = await updateTaskDetails(taskId, formData)
+    if (res.error) {
+      toast.error(res.error)
+      setTasks(initialTasks) // Revert
+    } else {
+      toast.success('Task rescheduled')
+      router.refresh()
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {selectedTask && (
+        <EditTaskDialog
+          task={selectedTask}
+          open={!!selectedTask}
+          onOpenChange={(open) => {
+             if (!open) setSelectedTask(null)
+             else router.refresh()
+          }}
+        />
+      )}
+      
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Calendar</h1>
         <div className="flex items-center gap-2 bg-white/50 dark:bg-slate-900/50 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
@@ -117,14 +168,25 @@ export function CalendarClient({ tasks }: CalendarClientProps) {
                 const isToday = day === new Date().getDate() && currentMonth === new Date().getMonth()
 
                 return (
-                  <div key={day} className={`bg-white dark:bg-slate-950 min-h-[120px] p-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/50 relative border-t border-slate-200 dark:border-slate-800 ${isToday ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''}`}>
+                  <div 
+                    key={day} 
+                    className={`bg-white dark:bg-slate-950 min-h-[120px] p-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/50 relative border-t border-slate-200 dark:border-slate-800 ${isToday ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''}`}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, dateStr)}
+                  >
                     <div className={`text-sm font-medium mb-1 ${isToday ? 'bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-slate-500'}`}>
                       {day}
                     </div>
                     <div className="space-y-1 mt-2">
                       {dayTasks.map(task => (
-                        <div key={task.id} className="truncate cursor-pointer">
-                          <Badge variant="outline" className={`w-full justify-start truncate text-xs ${task.status === 'completed' ? 'opacity-50 line-through' : ''} ${task.priority === 'high' || task.priority === 'urgent' ? 'border-red-200 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400' : 'bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors'}`} title={task.title}>
+                        <div 
+                          key={task.id} 
+                          className="truncate cursor-pointer"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, task.id)}
+                          onClick={() => setSelectedTask(task)}
+                        >
+                          <Badge variant="outline" className={`w-full justify-start truncate text-xs ${task.status === 'completed' ? 'opacity-50 line-through' : ''} ${task.priority === 'high' || task.priority === 'urgent' ? 'border-red-200 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400' : 'bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-grab active:cursor-grabbing'}`} title={task.title}>
                             {task.title}
                           </Badge>
                         </div>
@@ -155,7 +217,12 @@ export function CalendarClient({ tasks }: CalendarClientProps) {
                   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
                   return (
-                    <div key={i} className={`bg-white dark:bg-slate-950 p-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/50 flex flex-col ${isToday ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''}`}>
+                    <div 
+                      key={i} 
+                      className={`bg-white dark:bg-slate-950 p-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/50 flex flex-col ${isToday ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''}`}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, dateStr)}
+                    >
                       <div className="text-center pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
                         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{dayNames[i]}</div>
                         <div className={`text-lg font-bold mt-1 inline-flex items-center justify-center ${isToday ? 'bg-indigo-600 text-white w-8 h-8 rounded-full' : 'text-slate-700 dark:text-slate-300'}`}>
@@ -164,15 +231,18 @@ export function CalendarClient({ tasks }: CalendarClientProps) {
                       </div>
                       <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                         {dayTasks.map(task => (
-                          <div key={task.id} className="cursor-pointer">
-                            <Badge variant="outline" className={`w-full justify-start text-xs p-2 whitespace-normal h-auto ${task.status === 'completed' ? 'opacity-50 line-through' : ''} ${task.priority === 'high' || task.priority === 'urgent' ? 'border-red-200 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400' : 'bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm transition-colors'}`} title={task.title}>
+                          <div 
+                            key={task.id} 
+                            className="cursor-pointer"
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, task.id)}
+                            onClick={() => setSelectedTask(task)}
+                          >
+                            <Badge variant="outline" className={`w-full justify-start text-xs p-2 whitespace-normal h-auto ${task.status === 'completed' ? 'opacity-50 line-through' : ''} ${task.priority === 'high' || task.priority === 'urgent' ? 'border-red-200 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400' : 'bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm transition-colors cursor-grab active:cursor-grabbing'}`} title={task.title}>
                               {task.title}
                             </Badge>
                           </div>
                         ))}
-                        {dayTasks.length === 0 && (
-                          <div className="text-center py-4 text-xs text-slate-400">No tasks</div>
-                        )}
                       </div>
                     </div>
                   );
@@ -204,21 +274,14 @@ export function CalendarClient({ tasks }: CalendarClientProps) {
                 <div className="p-6 flex-1 bg-slate-50/50 dark:bg-slate-900/20">
                   <div className="space-y-3">
                     {dayTasks.length > 0 ? dayTasks.map(task => (
-                      <div key={task.id} className={`p-4 rounded-xl border bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center justify-between ${task.status === 'completed' ? 'opacity-60 border-slate-200 dark:border-slate-800' : 'border-slate-200 dark:border-slate-700'}`}>
+                      <div 
+                        key={task.id} 
+                        onClick={() => setSelectedTask(task)}
+                        className={`p-4 rounded-xl border bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center justify-between ${task.status === 'completed' ? 'opacity-60 border-slate-200 dark:border-slate-800' : 'border-slate-200 dark:border-slate-700'}`}
+                      >
                         <div className="flex flex-col gap-1">
                           <span className={`font-semibold text-base ${task.status === 'completed' ? 'line-through text-slate-500' : 'text-slate-800 dark:text-slate-100'}`}>
                             {task.title}
-                          </span>
-                          {task.description && (
-                            <span className="text-sm text-slate-500 line-clamp-1">{task.description}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className="capitalize text-[10px]" variant={task.status === 'completed' ? 'secondary' : 'default'}>
-                            {task.status.replace('_', ' ')}
-                          </Badge>
-                          <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-md ${task.priority === 'urgent' || task.priority === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
-                            {task.priority}
                           </span>
                         </div>
                       </div>

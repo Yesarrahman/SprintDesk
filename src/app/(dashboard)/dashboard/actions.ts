@@ -104,6 +104,19 @@ export async function fetchDashboardMetrics() {
       completed: count
   }))
 
+  // Fetch Team Members
+  let teamMembers = []
+  if (activeWorkspaceId) {
+    const { data: members } = await supabase
+      .from('workspace_members')
+      .select('profiles(id, full_name)')
+      .eq('workspace_id', activeWorkspaceId)
+    
+    if (members) {
+      teamMembers = members.map(m => m.profiles).filter(Boolean)
+    }
+  }
+
   return {
     metrics: {
       dueToday: dueTodayCount,
@@ -113,7 +126,8 @@ export async function fetchDashboardMetrics() {
       productivity: productivityScore,
       upcoming: upcomingTasks.slice(0, 3),
       trends,
-      estimatedFinishDate
+      estimatedFinishDate,
+      teamMembers
     }
   }
 }

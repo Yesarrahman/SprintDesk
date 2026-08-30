@@ -1,7 +1,7 @@
 export type Priority = 'low' | 'medium' | 'high' | 'urgent'
 export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'in_review' | 'completed' | 'cancelled' | 'archived'
 export type RecurringType = 'daily' | 'weekly'
-export type WorkspaceRole = 'owner' | 'admin' | 'manager' | 'member'
+export type WorkspaceRole = 'owner' | 'admin' | 'member'
 
 export interface Profile {
   id: string

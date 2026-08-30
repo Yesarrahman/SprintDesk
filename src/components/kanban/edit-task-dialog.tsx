@@ -56,6 +56,7 @@ const taskSchema = z.object({
   due_date: z.string().optional(),
   estimated_duration: z.string().optional(),
   assigned_to: z.string().optional(),
+  recurring_type: z.enum(['none', 'daily', 'weekly', 'monthly']).optional(),
 })
 
 type TaskFormValues = z.infer<typeof taskSchema>
@@ -116,6 +117,7 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
       due_date: task.due_date ? task.due_date.split('T')[0] : '',
       estimated_duration: task.estimated_duration ? task.estimated_duration.toString() : '',
       assigned_to: task.assigned_to || 'unassigned',
+      recurring_type: (task as any).recurring_type || 'none',
     },
   })
 
@@ -129,6 +131,7 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
         due_date: task.due_date ? task.due_date.split('T')[0] : '',
         estimated_duration: task.estimated_duration ? task.estimated_duration.toString() : '',
         assigned_to: task.assigned_to || 'unassigned',
+        recurring_type: (task as any).recurring_type || 'none',
       })
     }
   }, [open, task, form])
@@ -144,6 +147,7 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
     if (data.estimated_duration) formData.append('estimated_duration', data.estimated_duration)
     if (data.assigned_to && data.assigned_to !== 'unassigned') formData.append('assigned_to', data.assigned_to)
     if (data.assigned_to === 'unassigned') formData.append('assigned_to', 'unassigned')
+    if (data.recurring_type) formData.append('recurring_type', data.recurring_type)
 
     const result = await updateTaskDetails(task.id, formData)
 
@@ -197,6 +201,51 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
     }
   }
 
+  // Timer functionality
+  const [timeState, setTimeState] = useState({ totalSeconds: 0, isRunning: false })
+  const [timerInterval, setTimerInterval] = useState<any>(null)
+
+  useEffect(() => {
+    if (open) {
+      import('@/app/(dashboard)/kanban/actions').then(m => {
+        m.fetchTaskTime(task.id).then(res => setTimeState(res as any))
+      })
+    }
+  }, [open, task.id])
+
+  useEffect(() => {
+    if (timeState.isRunning) {
+      const interval = setInterval(() => {
+        setTimeState(prev => ({ ...prev, totalSeconds: prev.totalSeconds + 1 }))
+      }, 1000)
+      setTimerInterval(interval)
+      return () => clearInterval(interval)
+    } else if (timerInterval) {
+      clearInterval(timerInterval)
+    }
+    return () => {}
+  }, [timeState.isRunning])
+
+  const handleToggleTimer = async () => {
+    setTimeState(prev => ({ ...prev, isRunning: !prev.isRunning }))
+    import('@/app/(dashboard)/kanban/actions').then(async m => {
+      const res = await m.toggleTaskTimer(task.id)
+      if (res.error) {
+        toast.error(res.error)
+        setTimeState(prev => ({ ...prev, isRunning: !prev.isRunning }))
+      } else {
+        toast.success(res.status === 'started' ? 'Timer started' : 'Timer stopped')
+      }
+    })
+  }
+
+  const formatTime = (totalSeconds: number) => {
+    const hrs = Math.floor(totalSeconds / 3600)
+    const mins = Math.floor((totalSeconds % 3600) / 60)
+    const secs = totalSeconds % 60
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
@@ -205,7 +254,15 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
       >
         <DialogHeader className="flex flex-row items-center justify-between">
           <div>
-            <DialogTitle>Edit Task</DialogTitle>
+            <div className="flex items-center gap-4">
+              <DialogTitle>Edit Task</DialogTitle>
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-800">
+                 <div className="text-sm font-mono text-slate-700 dark:text-slate-300 w-16 text-center">{formatTime(timeState.totalSeconds)}</div>
+                 <Button size="sm" variant={timeState.isRunning ? 'destructive' : 'default'} className="h-6 text-xs px-2" onClick={handleToggleTimer}>
+                   {timeState.isRunning ? 'Stop' : 'Start'}
+                 </Button>
+              </div>
+            </div>
             <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
                ID: <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">{task.id.split('-')[0]}</span>
                <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[10px]" onClick={() => {
@@ -268,12 +325,25 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
                   <FormMessage /></FormItem>
                 )} />
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <FormField control={form.control} name="due_date" render={({ field }) => (
                   <FormItem><FormLabel>Due Date</FormLabel><FormControl><Input type="date" {...field} className="bg-white/50 dark:bg-slate-900/50" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="estimated_duration" render={({ field }) => (
                   <FormItem><FormLabel>Est. Minutes</FormLabel><FormControl><Input type="number" {...field} className="bg-white/50 dark:bg-slate-900/50" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="recurring_type" render={({ field }) => (
+                  <FormItem><FormLabel>Recurring</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger className="bg-white/50 dark:bg-slate-900/50"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  <FormMessage /></FormItem>
                 )} />
               </div>
               <div className="flex justify-end pt-4">
