@@ -22,6 +22,7 @@ interface TaskWithProfile extends Task {
   profiles?: { full_name: string | null }
   subtasks_count?: number
   completed_subtasks?: number
+  comments_count?: number
   tags?: { id: string; name: string; color: string }[]
 }
 
@@ -226,6 +227,12 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove, isPersonal = 
             <div className="flex items-center gap-1 hover:text-indigo-600 transition-colors" title="Start Timer">
               <PlayCircle className="h-3.5 w-3.5 cursor-pointer" />
               <span>{task.estimated_duration}m</span>
+            </div>
+          )}
+          {task.comments_count !== undefined && task.comments_count > 0 && (
+            <div className="flex items-center gap-1 text-slate-500 bg-slate-50 dark:bg-slate-800 px-1.5 py-1 rounded-md">
+              <span className="text-[10px]">💬</span>
+              <span>{task.comments_count}</span>
             </div>
           )}
         </div>

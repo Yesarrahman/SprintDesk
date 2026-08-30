@@ -35,6 +35,7 @@ export interface Task {
   status: TaskStatus
   priority: Priority
   due_date: string | null
+  started_at: string | null
   start_date: string | null
   estimated_duration: number | null
   actual_duration: number | null

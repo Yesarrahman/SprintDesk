@@ -46,9 +46,7 @@ export default async function AutomationsPage() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <AutomationsClient 
-        initialAutomations={automations || []} 
         role={role as any} 
-        tier={process.env.NODE_ENV === 'development' ? 'enterprise' : (ws?.tier || 'free')} 
       />
     </div>
   )

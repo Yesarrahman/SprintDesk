@@ -42,7 +42,9 @@ export async function fetchTasks() {
         *,
         profiles:assigned_to (
           full_name
-        )
+        ),
+        comments:task_comments(count),
+        subtasks(id, completed)
       `)
       .order('created_at', { ascending: false })
 
@@ -195,7 +197,7 @@ export async function updateTaskDetails(taskId: string, formData: FormData) {
     // First get the workspace ID for this task
     const { data: taskData } = await supabase
       .from('tasks')
-      .select('workspace_id')
+      .select('workspace_id, status')
       .eq('id', taskId)
       .single()
 
@@ -224,7 +226,7 @@ export async function updateTaskDetails(taskId: string, formData: FormData) {
 
     if (!title) return { error: 'Task title is required' }
 
-    const updateData: Partial<Task> = {
+    const updateData: Partial<Task> & { started_at?: string | null, completed_at?: string | null } = {
       title,
       description: description || null,
       priority: priority as Task['priority'] || 'medium',
@@ -232,6 +234,12 @@ export async function updateTaskDetails(taskId: string, formData: FormData) {
       due_date: dueDate ? new Date(dueDate).toISOString() : null,
       estimated_duration: estimatedDuration ? parseInt(estimatedDuration) : null,
       updated_at: new Date().toISOString(),
+    }
+
+    if (status === 'in_progress' && taskData.status !== 'in_progress') {
+       updateData.started_at = new Date().toISOString()
+    } else if (status === 'completed' && taskData.status !== 'completed') {
+       updateData.completed_at = new Date().toISOString()
     }
 
     if (assignedTo === 'unassigned') {
@@ -251,6 +259,10 @@ export async function updateTaskDetails(taskId: string, formData: FormData) {
       console.error('Error updating task details:', error)
       return { error: error.message }
     }
+    
+    if (status !== taskData.status) {
+      executeAutomations(taskData.workspace_id, taskId, 'status_changed', status)
+    }
 
     return { task: data as Task }
   } catch (err) {
@@ -263,9 +275,13 @@ export async function updateTaskStatus(taskId: string, newStatus: TaskStatus) {
   try {
     const supabase = await createClient()
 
+    const updateData: any = { status: newStatus }
+    if (newStatus === 'in_progress') updateData.started_at = new Date().toISOString()
+    if (newStatus === 'completed') updateData.completed_at = new Date().toISOString()
+
     const { error, data } = await supabase
       .from('tasks')
-      .update({ status: newStatus })
+      .update(updateData)
       .eq('id', taskId)
       .select('workspace_id')
       .single()
@@ -292,10 +308,20 @@ export async function updateTaskOrder(updates: { id: string; sort_order: number;
     const supabase = await createClient()
 
     for (const update of updates) {
-      const { error } = await supabase
+      const updateData: any = { sort_order: update.sort_order, status: update.status }
+      if (update.status === 'in_progress') updateData.started_at = new Date().toISOString()
+      if (update.status === 'completed') updateData.completed_at = new Date().toISOString()
+      
+      const { error, data } = await supabase
         .from('tasks')
-        .update({ sort_order: update.sort_order, status: update.status })
+        .update(updateData)
         .eq('id', update.id)
+        .select('workspace_id')
+        .single()
+        
+      if (data?.workspace_id) {
+         executeAutomations(data.workspace_id, update.id, 'status_changed', update.status)
+      }
         
       if (error) {
         console.error('Error updating task order:', error)
@@ -430,4 +456,95 @@ export async function fetchTeamMembers() {
   } catch (err) {
     return { members: [] }
   }
+}
+export async function fetchTaskComments(taskId: string) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('task_comments')
+      .select('*, profiles:user_id(full_name)')
+      .eq('task_id', taskId)
+      .order('created_at', { ascending: true })
+    if (error) return { error: error.message }
+    return { comments: data }
+  } catch (err) {
+    return { error: 'Failed to fetch comments' }
+  }
+}
+
+export async function addTaskComment(taskId: string, content: string) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Unauthorized' }
+    
+    const { data, error } = await supabase
+      .from('task_comments')
+      .insert({ task_id: taskId, user_id: user.id, content })
+      .select('*, profiles:user_id(full_name)')
+      .single()
+      
+    if (error) return { error: error.message }
+    return { comment: data }
+  } catch (err) {
+    return { error: 'Failed to add comment' }
+  }
+}
+
+export async function addSubtask(taskId: string, title: string) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('subtasks').insert({ task_id: taskId, title }).select().single()
+    if (error) return { error: error.message }
+    return { subtask: data }
+  } catch (err) { return { error: 'Failed' } }
+}
+
+export async function updateSubtask(subtaskId: string, completed: boolean) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('subtasks').update({ completed }).eq('id', subtaskId).select().single()
+    if (error) return { error: error.message }
+    return { subtask: data }
+  } catch (err) { return { error: 'Failed' } }
+}
+
+export async function deleteSubtask(subtaskId: string) {
+  try {
+    const supabase = await createClient()
+    await supabase.from('subtasks').delete().eq('id', subtaskId)
+    return { success: true }
+  } catch (err) { return { error: 'Failed' } }
+}
+
+export async function fetchSubtasks(taskId: string) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('subtasks').select('*').eq('task_id', taskId).order('created_at', { ascending: true })
+    if (error) return { error: error.message }
+    return { subtasks: data }
+  } catch (err) { return { error: 'Failed' } }
+}
+
+export async function fetchLinkedTasks(taskId: string) {
+  try {
+    const supabase = await createClient()
+    const { data: targets, error: e1 } = await supabase.from('linked_tasks').select('id, relation_type, target_task_id, tasks!target_task_id(title, status, workspace_id, workspaces(name))').eq('source_task_id', taskId)
+    const { data: sources, error: e2 } = await supabase.from('linked_tasks').select('id, relation_type, source_task_id, tasks!source_task_id(title, status, workspace_id, workspaces(name))').eq('target_task_id', taskId)
+    if (e1 || e2) return { error: 'Error fetching linked tasks' }
+    const links = [
+      ...(targets || []).map(t => ({ id: t.id, relation: t.relation_type, linked_task: t.tasks })),
+      ...(sources || []).map(s => ({ id: s.id, relation: 'is ' + s.relation_type + ' by', linked_task: s.tasks }))
+    ]
+    return { links }
+  } catch (err) { return { error: 'Failed' } }
+}
+
+export async function addLinkedTask(sourceTaskId: string, targetTaskId: string, relationType: string) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('linked_tasks').insert({ source_task_id: sourceTaskId, target_task_id: targetTaskId, relation_type: relationType }).select().single()
+    if (error) return { error: error.message }
+    return { link: data }
+  } catch (err) { return { error: 'Failed' } }
 }

@@ -45,6 +45,8 @@ export async function fetchDashboardMetrics() {
     completionByDate[dateStr] = 0
   }
 
+  let completedToday = 0
+
   for (const task of tasks) {
     if (task.status === 'completed') {
       completedCount++
@@ -53,6 +55,10 @@ export async function fetchDashboardMetrics() {
       const dateStr = completionDate.toISOString().split('T')[0]
       if (completionByDate[dateStr] !== undefined) {
          completionByDate[dateStr]++
+      }
+      
+      if (completionDate >= today && completionDate < tomorrow) {
+         completedToday++
       }
     }
 
@@ -103,6 +109,7 @@ export async function fetchDashboardMetrics() {
       dueToday: dueTodayCount,
       highPriorityDueToday,
       completed: completedCount,
+      completedToday,
       productivity: productivityScore,
       upcoming: upcomingTasks.slice(0, 3),
       trends,

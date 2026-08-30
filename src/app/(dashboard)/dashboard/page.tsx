@@ -329,7 +329,7 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="text-3xl font-bold text-slate-900 dark:text-white">{metrics?.completed || 0}</div>
             <p className="text-xs text-slate-500 mt-1">
-              Total completed tasks
+              {metrics?.completedToday || 0} completed today
             </p>
           </CardContent>
         </Card>

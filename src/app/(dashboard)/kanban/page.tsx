@@ -72,7 +72,18 @@ export default async function KanbanPage() {
         </div>
       </div>
       
-      <KanbanBoard initialTasks={tasks || []} initialColumns={columns || []} role={role} workspaceId={activeWorkspaceId!} isPersonal={isPersonal} />
+      <KanbanBoard 
+        initialTasks={(tasks || []).map((t: any) => ({
+          ...t,
+          comments_count: t.comments?.[0]?.count || 0,
+          subtasks_count: t.subtasks?.length || 0,
+          completed_subtasks: t.subtasks?.filter((s: any) => s.completed)?.length || 0
+        }))} 
+        initialColumns={columns || []} 
+        role={role} 
+        workspaceId={activeWorkspaceId!} 
+        isPersonal={isPersonal} 
+      />
     </div>
   )
 }
