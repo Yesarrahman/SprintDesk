@@ -105,7 +105,7 @@ export async function fetchDashboardMetrics() {
   }))
 
   // Fetch Team Members
-  let teamMembers = []
+  let teamMembers: any[] = []
   if (activeWorkspaceId) {
     const { data: members } = await supabase
       .from('workspace_members')

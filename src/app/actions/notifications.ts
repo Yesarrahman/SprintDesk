@@ -1,4 +1,6 @@
-﻿import { createClient } from '@/lib/supabase/server'
+﻿'use server'
+
+import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function fetchNotifications() {
@@ -31,3 +33,4 @@ export async function markAllNotificationsAsRead() {
   await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id)
   revalidatePath('/', 'layout')
 }
+

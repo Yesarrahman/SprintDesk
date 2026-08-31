@@ -97,7 +97,7 @@ export function AutomationsClient({ role }: { role: WorkspaceRole }) {
             <CardContent className="p-4 flex flex-col md:flex-row md:items-center gap-4">
               <div className="flex-1 flex flex-col md:flex-row items-center gap-4">
                 <span className="font-semibold text-slate-700 dark:text-slate-300 w-16">WHEN</span>
-                <Select disabled={!canEdit} value={rule.trigger_type} onValueChange={(val) => handleUpdateRule(rule.id, 'trigger_type', val)}>
+                <Select disabled={!canEdit} value={rule.trigger_type} onValueChange={(val) => handleUpdateRule(rule.id, 'trigger_type', val as string)}>
                   <SelectTrigger className="w-[180px] bg-white/50 dark:bg-slate-950/50">
                     <SelectValue placeholder="Trigger Type" />
                   </SelectTrigger>
@@ -106,7 +106,7 @@ export function AutomationsClient({ role }: { role: WorkspaceRole }) {
                     <SelectItem value="priority_changed">Priority Changes To</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select disabled={!canEdit} value={rule.trigger_value} onValueChange={(val) => handleUpdateRule(rule.id, 'trigger_value', val)}>
+                <Select disabled={!canEdit} value={rule.trigger_value} onValueChange={(val) => handleUpdateRule(rule.id, 'trigger_value', val as string)}>
                   <SelectTrigger className="w-[180px] bg-white/50 dark:bg-slate-950/50">
                     <SelectValue placeholder="Value" />
                   </SelectTrigger>
@@ -124,7 +124,7 @@ export function AutomationsClient({ role }: { role: WorkspaceRole }) {
 
               <div className="flex-1 flex flex-col md:flex-row items-center gap-4">
                 <span className="font-semibold text-indigo-600 dark:text-indigo-400 w-16">THEN</span>
-                <Select disabled={!canEdit} value={rule.action_type} onValueChange={(val) => handleUpdateRule(rule.id, 'action_type', val)}>
+                <Select disabled={!canEdit} value={rule.action_type} onValueChange={(val) => handleUpdateRule(rule.id, 'action_type', val as string)}>
                   <SelectTrigger className="w-[180px] bg-white/50 dark:bg-slate-950/50">
                     <SelectValue placeholder="Action Type" />
                   </SelectTrigger>
@@ -133,7 +133,7 @@ export function AutomationsClient({ role }: { role: WorkspaceRole }) {
                     <SelectItem value="set_priority">Set Priority</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select disabled={!canEdit} value={rule.action_value} onValueChange={(val) => handleUpdateRule(rule.id, 'action_value', val)}>
+                <Select disabled={!canEdit} value={rule.action_value} onValueChange={(val) => handleUpdateRule(rule.id, 'action_value', val as string)}>
                   <SelectTrigger className="w-[180px] bg-white/50 dark:bg-slate-950/50">
                     <SelectValue placeholder="Value" />
                   </SelectTrigger>
@@ -185,14 +185,14 @@ export function AutomationsClient({ role }: { role: WorkspaceRole }) {
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <span className="font-semibold text-sm">WHEN</span>
-              <Select value={newTriggerType} onValueChange={(v) => { setNewTriggerType(v); setNewTriggerValue(v === 'status_changed' ? 'completed' : 'urgent') }}>
+              <Select value={newTriggerType} onValueChange={(v) => { setNewTriggerType(v as string); setNewTriggerValue(v === 'status_changed' ? 'completed' : 'urgent') }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="status_changed">Status Changes To</SelectItem>
                   <SelectItem value="priority_changed">Priority Changes To</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={newTriggerValue} onValueChange={setNewTriggerValue}>
+              <Select value={newTriggerValue} onValueChange={(v) => setNewTriggerValue(v as string)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                    {newTriggerType === 'status_changed' ? (
@@ -216,14 +216,14 @@ export function AutomationsClient({ role }: { role: WorkspaceRole }) {
             </div>
             <div className="space-y-2">
               <span className="font-semibold text-sm text-indigo-600">THEN</span>
-              <Select value={newActionType} onValueChange={(v) => { setNewActionType(v); setNewActionValue(v === 'assign_to' ? 'unassigned' : 'urgent') }}>
+              <Select value={newActionType} onValueChange={(v) => { setNewActionType(v as string); setNewActionValue(v === 'assign_to' ? 'unassigned' : 'urgent') }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="assign_to">Change Assignee</SelectItem>
                   <SelectItem value="set_priority">Set Priority</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={newActionValue} onValueChange={setNewActionValue}>
+              <Select value={newActionValue} onValueChange={(v) => setNewActionValue(v as string)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {newActionType === 'assign_to' ? (

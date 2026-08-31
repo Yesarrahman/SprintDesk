@@ -404,7 +404,7 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
         {activeTab === 'links' && (
           <div className="space-y-4">
             <div className="flex gap-2 items-center">
-              <Select value={newLinkRelation} onValueChange={setNewLinkRelation}>
+              <Select value={newLinkRelation} onValueChange={(v) => setNewLinkRelation(v as string)}>
                 <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="relates_to">Relates to</SelectItem>

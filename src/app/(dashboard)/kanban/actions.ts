@@ -234,7 +234,7 @@ export async function updateTaskDetails(taskId: string, formData: FormData) {
       status: status || 'todo',
       due_date: dueDate ? new Date(dueDate).toISOString() : null,
       estimated_duration: estimatedDuration ? parseInt(estimatedDuration) : null,
-      recurring_type: recurringType,
+      recurring_type: recurringType as any,
       updated_at: new Date().toISOString(),
     }
 
@@ -288,6 +288,24 @@ export async function updateTaskStatus(taskId: string, newStatus: TaskStatus) {
       .select('workspace_id')
       .single()
 
+    if (error) {
+      console.error('Error updating task status:', error)
+      return { error: error.message }
+    }
+
+    if (data?.workspace_id) {
+      executeAutomations(data.workspace_id, taskId, 'status_changed', newStatus)
+    }
+
+    if (newStatus === 'completed') {
+       processRecurringTask(taskId)
+    }
+
+    return { success: true }
+  } catch (err) {
+    console.error('Unexpected error in updateTaskStatus:', err)
+    return { error: 'An unexpected error occurred while updating task status' }
+  }
 }
 
 export async function updateTaskOrder(updates: { id: string; sort_order: number; status: TaskStatus }[]) {

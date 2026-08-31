@@ -37,14 +37,12 @@ export function NotificationsDropdown() {
   }
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500"></span>
-          )}
-        </Button>
+      <Popover>
+      <PopoverTrigger className="relative inline-flex items-center justify-center rounded-md text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 h-9 w-9 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+        <Bell className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500"></span>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800">
