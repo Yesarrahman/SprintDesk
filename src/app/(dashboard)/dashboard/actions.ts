@@ -107,13 +107,15 @@ export async function fetchDashboardMetrics() {
   // Fetch Team Members
   let teamMembers: any[] = []
   if (activeWorkspaceId) {
-    const { data: members } = await supabase
+    const { createAdminClient } = await import('@/lib/supabase/server')
+    const adminClient = await createAdminClient()
+    const { data: members } = await adminClient
       .from('workspace_members')
       .select('profiles(id, full_name, avatar_url)')
       .eq('workspace_id', activeWorkspaceId)
     
     if (members) {
-      teamMembers = members.map(m => m.profiles).filter(Boolean)
+      teamMembers = members.map((m: any) => m.profiles).filter(Boolean)
     }
   }
 
