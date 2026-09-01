@@ -448,13 +448,15 @@ export async function fetchTeamMembers() {
     const adminClient = await createAdminClient()
     const { data } = await adminClient
       .from('workspace_members')
-      .select('user_id, profiles(full_name)')
+      .select('user_id, profiles(full_name, avatar_url)')
       .eq('workspace_id', activeWorkspaceId)
     
     const members = (data || []).map(m => ({
       user_id: m.user_id,
       // @ts-expect-error: Joined column
-      full_name: m.profiles?.full_name || 'User'
+      full_name: m.profiles?.full_name || 'User',
+      // @ts-expect-error: Joined column
+      avatar_url: m.profiles?.avatar_url || null
     }))
     
     return { members }

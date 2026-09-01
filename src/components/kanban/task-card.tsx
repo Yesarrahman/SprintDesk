@@ -19,7 +19,7 @@ import {
 import { EditTaskDialog } from './edit-task-dialog'
 
 interface TaskWithProfile extends Task {
-  profiles?: { full_name: string | null }
+  profiles?: { full_name: string | null; avatar_url?: string | null }
   subtasks_count?: number
   completed_subtasks?: number
   comments_count?: number
@@ -238,7 +238,7 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove, isPersonal = 
         </div>
 
         <Avatar className="h-7 w-7 border border-white dark:border-slate-800 shadow-sm" title={assigneeName}>
-          <AvatarImage src="" />
+          <AvatarImage src={task.profiles?.avatar_url || ''} alt={assigneeName} />
           <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white text-[10px]">
             {initials}
           </AvatarFallback>

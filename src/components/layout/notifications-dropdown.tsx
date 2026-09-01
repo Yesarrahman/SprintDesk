@@ -22,10 +22,12 @@ export function NotificationsDropdown() {
 
     // Realtime subscription
     const channel = supabase.channel('realtime_notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
-        setNotifications(prev => [payload.new, ...prev])
-      })
-      .subscribe()
+    
+    channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
+      setNotifications(prev => [payload.new, ...prev])
+    })
+    
+    channel.subscribe()
 
     return () => { supabase.removeChannel(channel) }
   }, [])

@@ -249,7 +249,7 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="sm:max-w-[600px] bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border border-white/20 dark:border-slate-800/50"
+        className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border border-white/20 dark:border-slate-800/50"
         onKeyDown={(e) => e.stopPropagation()}
       >
         <DialogHeader className="flex flex-row items-center justify-between">

@@ -23,6 +23,8 @@ import { updateTaskStatus, deleteTask, updateTaskOrder } from '@/app/(dashboard)
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { arrayMove } from '@dnd-kit/sortable'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const ALL_COLUMNS: { id: TaskStatus; title: string }[] = [
   { id: 'backlog', title: 'Backlog' },
@@ -35,13 +37,14 @@ const ALL_COLUMNS: { id: TaskStatus; title: string }[] = [
 interface KanbanBoardProps {
   initialTasks: Task[]
   initialColumns: { id: string; title: string; order_index: number }[]
+  teamMembers?: { user_id: string; full_name: string; avatar_url: string | null }[]
   role?: string
   workspaceId: string
   isPersonal?: boolean
 }
 
-export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', workspaceId, isPersonal = false }: KanbanBoardProps) {
-  const { tasks, setTasks, moveTask, removeTask, columns, setColumns } = useKanbanStore()
+export function KanbanBoard({ initialTasks, initialColumns, teamMembers = [], role = 'owner', workspaceId, isPersonal = false }: KanbanBoardProps) {
+  const { tasks, setTasks, moveTask, removeTask, columns, setColumns, assigneeFilter, setAssigneeFilter } = useKanbanStore()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [isMounted, setIsMounted] = useState(false)
   const [viewMode, setViewMode] = useState<'board' | 'swimlanes'>('board')
@@ -62,27 +65,35 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
     setIsMounted(true)
 
     const supabase = createClient()
-    const channel = supabase
-      .channel('tasks_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          const newTask = payload.new as Task
-          if (newTask.workspace_id !== workspaceId) return;
-          const currentTasks = useKanbanStore.getState().tasks
-          if (!currentTasks.find((t) => t.id === newTask.id)) {
-            useKanbanStore.getState().addTask(newTask)
-          }
-        } else if (payload.eventType === 'UPDATE') {
-          const updatedTask = payload.new as Task
-          useKanbanStore.getState().updateTask(updatedTask.id, updatedTask)
-        } else if (payload.eventType === 'DELETE') {
-          const deletedTask = payload.old
-          if (deletedTask.id) {
-            useKanbanStore.getState().removeTask(deletedTask.id)
-          }
+    const channel = supabase.channel('tasks_changes')
+    
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
+      if (payload.eventType === 'INSERT') {
+        const newTask = payload.new as Task
+        if (newTask.workspace_id !== workspaceId) return;
+        const currentTasks = useKanbanStore.getState().tasks
+        if (!currentTasks.find((t) => t.id === newTask.id)) {
+          useKanbanStore.getState().addTask(newTask)
         }
-      })
-      .subscribe()
+      } else if (payload.eventType === 'UPDATE') {
+        const updatedTask = payload.new as Task
+        const currentTasks = useKanbanStore.getState().tasks
+        const existing = currentTasks.find(t => t.id === updatedTask.id)
+        
+        useKanbanStore.getState().updateTask(updatedTask.id, {
+          ...updatedTask,
+          // Preserve joined profiles data which Realtime doesn't include
+          profiles: existing ? (existing as any).profiles : undefined
+        })
+      } else if (payload.eventType === 'DELETE') {
+        const deletedTask = payload.old
+        if (deletedTask.id) {
+          useKanbanStore.getState().removeTask(deletedTask.id)
+        }
+      }
+    })
+    
+    channel.subscribe()
 
     return () => {
       supabase.removeChannel(channel)
@@ -235,47 +246,97 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
     >
       <div className="flex items-center justify-between mb-4 px-1">
         {!isPersonal && (
-          <div className="flex items-center gap-4 bg-white/50 dark:bg-slate-900/50 p-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
-            <button
-              onClick={() => { setViewMode('board'); setIsSprintPlanning(false); }}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'board' && !isSprintPlanning ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-            >
-              Kanban Board
-            </button>
-            <button
-              onClick={() => { setViewMode('swimlanes'); setIsSprintPlanning(false); }}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'swimlanes' && !isSprintPlanning ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-            >
-              Swimlanes (By Assignee)
-            </button>
-            <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1" />
-            <button
-              onClick={() => setIsSprintPlanning(true)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${isSprintPlanning ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-            >
-              Sprint Planning
-            </button>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full">
+            <div className="flex items-center gap-2 bg-white/50 dark:bg-slate-900/50 p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 shrink-0">
+              <button
+                onClick={() => { setViewMode('board'); setIsSprintPlanning(false); }}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'board' && !isSprintPlanning ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              >
+                Kanban Board
+              </button>
+              <button
+                onClick={() => { setViewMode('swimlanes'); setIsSprintPlanning(false); }}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${viewMode === 'swimlanes' && !isSprintPlanning ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              >
+                Swimlanes
+              </button>
+              <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1" />
+              <button
+                onClick={() => setIsSprintPlanning(true)}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${isSprintPlanning ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              >
+                Sprint Planning
+              </button>
+            </div>
+
+            {/* Jira-style Avatar Filter Group */}
+            {teamMembers.length > 0 && (
+              <div className="flex items-center gap-3 bg-white/50 dark:bg-slate-900/50 p-1.5 px-3 rounded-lg border border-slate-200 dark:border-slate-800 shrink-0 overflow-x-auto">
+                <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Assignees</span>
+                <div className="flex items-center -space-x-2">
+                  <TooltipProvider delay={200}>
+                    {teamMembers.map((member, i) => (
+                      <Tooltip key={member.user_id}>
+                        <TooltipTrigger 
+                          onClick={() => setAssigneeFilter(assigneeFilter === member.user_id ? null : member.user_id)}
+                          className={`rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:-translate-y-1 ${
+                            assigneeFilter && assigneeFilter !== member.user_id 
+                              ? 'opacity-30 scale-90' 
+                              : 'opacity-100 hover:z-20'
+                          } ${
+                            assigneeFilter === member.user_id ? 'ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-slate-900 z-20 scale-110' : ''
+                          }`}
+                          style={{ zIndex: assigneeFilter === member.user_id ? 20 : 10 - i }}
+                        >
+                          <Avatar className="h-8 w-8 border-2 border-white dark:border-slate-950">
+                            <AvatarImage src={member.avatar_url || ''} alt={member.full_name} />
+                            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[10px] font-bold">
+                              {member.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" sideOffset={5} className="text-xs">
+                          {member.full_name}
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                    {/* Clear filter option */}
+                    {assigneeFilter && (
+                      <button 
+                        onClick={() => setAssigneeFilter(null)}
+                        className="ml-4 text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                        style={{ zIndex: 0 }}
+                      >
+                        Clear Filter
+                      </button>
+                    )}
+                  </TooltipProvider>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       <div className="flex gap-6 h-[calc(100vh-16rem)] overflow-x-auto pb-4">
         {isSprintPlanning ? (
-          <div className="flex gap-6 w-full">
-            <div className="flex-1 bg-slate-50 dark:bg-slate-900/40 rounded-xl p-4 border border-slate-200 dark:border-slate-800">
+          <div className="flex gap-6 w-full h-full">
+            <div className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-900/40 rounded-xl p-4 border border-slate-200 dark:border-slate-800 flex flex-col">
               <h3 className="font-bold text-lg mb-4">Product Backlog</h3>
               <p className="text-sm text-slate-500 mb-4">Drag tasks from the backlog into the Active Sprint.</p>
-              <KanbanColumn
-                column={{ id: 'backlog', title: 'Backlog Tasks' }}
-                tasks={tasks.filter(t => t.status === 'backlog')}
-                onDeleteTask={handleDeleteTask}
-                onMoveTask={handleMoveTask}
-                role={role}
-                isPersonal={isPersonal}
-                className="w-full h-[calc(100%-3rem)]"
-              />
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <KanbanColumn
+                  column={{ id: 'backlog', title: 'Backlog Tasks' }}
+                  tasks={(assigneeFilter ? tasks.filter(t => t.assigned_to === assigneeFilter) : tasks).filter(t => t.status === 'backlog')}
+                  onDeleteTask={handleDeleteTask}
+                  onMoveTask={handleMoveTask}
+                  role={role}
+                  isPersonal={isPersonal}
+                  className="w-full h-full"
+                />
+              </div>
             </div>
-            <div className="flex-1 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl p-4 border border-indigo-100 dark:border-indigo-900/30">
+            <div className="flex-[2] min-w-0 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl p-4 border border-indigo-100 dark:border-indigo-900/30 flex flex-col">
               <h3 className="font-bold text-lg mb-4 text-indigo-900 dark:text-indigo-100">Active Sprint</h3>
               <p className="text-sm text-indigo-600/70 dark:text-indigo-400/70 mb-4">Tasks committed for this sprint.</p>
               <div className="flex gap-4 overflow-x-auto">
@@ -283,7 +344,7 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
                   <KanbanColumn
                     key={col.id}
                     column={col as any}
-                    tasks={tasks.filter((t) => t.status === col.id)}
+                    tasks={(assigneeFilter ? tasks.filter(t => t.assigned_to === assigneeFilter) : tasks).filter((t) => t.status === col.id)}
                     onDeleteTask={handleDeleteTask}
                     onMoveTask={handleMoveTask}
                     role={role}
@@ -295,8 +356,8 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
           </div>
         ) : viewMode === 'swimlanes' ? (
           <div className="flex flex-col gap-8 w-full min-w-max">
-            {['unassigned', ...Array.from(new Set(tasks.map(t => t.assigned_to).filter(Boolean)))].map(assigneeId => {
-              const assigneeTasks = tasks.filter(t => (assigneeId === 'unassigned' ? !t.assigned_to : t.assigned_to === assigneeId))
+            {['unassigned', ...Array.from(new Set((assigneeFilter ? tasks.filter(t => t.assigned_to === assigneeFilter) : tasks).map(t => t.assigned_to).filter(Boolean)))].map(assigneeId => {
+              const assigneeTasks = (assigneeFilter ? tasks.filter(t => t.assigned_to === assigneeFilter) : tasks).filter(t => (assigneeId === 'unassigned' ? !t.assigned_to : t.assigned_to === assigneeId))
               if (assigneeTasks.length === 0) return null
               return (
                 <div key={assigneeId} className="flex flex-col gap-2 border-b border-slate-200 dark:border-slate-800 pb-8">
@@ -324,7 +385,7 @@ export function KanbanBoard({ initialTasks, initialColumns, role = 'owner', work
               <KanbanColumn
                 key={col.id}
                 column={col as any}
-                tasks={tasks.filter((t) => t.status === col.id)}
+                tasks={(assigneeFilter ? tasks.filter(t => t.assigned_to === assigneeFilter) : tasks).filter((t) => t.status === col.id)}
                 onDeleteTask={handleDeleteTask}
                 onMoveTask={handleMoveTask}
                 role={role}

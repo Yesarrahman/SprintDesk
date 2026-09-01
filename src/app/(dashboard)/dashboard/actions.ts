@@ -109,7 +109,7 @@ export async function fetchDashboardMetrics() {
   if (activeWorkspaceId) {
     const { data: members } = await supabase
       .from('workspace_members')
-      .select('profiles(id, full_name)')
+      .select('profiles(id, full_name, avatar_url)')
       .eq('workspace_id', activeWorkspaceId)
     
     if (members) {

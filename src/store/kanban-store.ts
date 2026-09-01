@@ -11,13 +11,17 @@ interface KanbanState {
   removeTask: (taskId: string) => void
   updateTask: (taskId: string, updates: Partial<Task>) => void
   moveTask: (taskId: string, newStatus: TaskStatus) => void
+  assigneeFilter: string | null
+  setAssigneeFilter: (userId: string | null) => void
 }
 
 export const useKanbanStore = create<KanbanState>((set) => ({
   tasks: [],
   columns: [],
+  assigneeFilter: null,
   setTasks: (tasks) => set({ tasks }),
   setColumns: (columns) => set({ columns }),
+  setAssigneeFilter: (userId) => set({ assigneeFilter: userId }),
   addColumn: (column) => set((state) => ({ columns: [...state.columns, column] })),
   addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
   removeTask: (taskId) =>

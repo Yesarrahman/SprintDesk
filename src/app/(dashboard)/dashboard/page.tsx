@@ -9,6 +9,7 @@ import { DashboardChart } from './dashboard-chart'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -121,20 +122,26 @@ export default async function DashboardPage() {
               {metrics?.teamMembers && metrics.teamMembers.length > 0 && (
                 <span className="flex items-center -space-x-2">
                   {metrics.teamMembers.slice(0, 5).map((member: any, i: number) => (
-                    <div 
-                      key={member.id} 
-                      className="h-6 w-6 rounded-full bg-indigo-100 dark:bg-indigo-900 border-2 border-white dark:border-slate-950 flex items-center justify-center text-[10px] font-bold text-indigo-700 dark:text-indigo-300"
-                      title={member.full_name}
+                    <Avatar
+                      key={member.id}
+                      className="h-7 w-7 border-2 border-white dark:border-slate-950 ring-0"
                       style={{ zIndex: 10 - i }}
+                      title={member.full_name || 'Team member'}
                     >
-                      {member.full_name?.charAt(0) || 'U'}
-                    </div>
+                      <AvatarImage src={member.avatar_url || ''} alt={member.full_name || ''} />
+                      <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[10px] font-bold">
+                        {member.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
                   ))}
                   {metrics.teamMembers.length > 5 && (
-                    <div className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-950 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-300 z-0">
+                    <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-950 flex items-center justify-center text-[10px] font-bold text-slate-600 dark:text-slate-300 z-0">
                       +{metrics.teamMembers.length - 5}
                     </div>
                   )}
+                  <span className="ml-3 text-xs text-slate-400">
+                    {metrics.teamMembers.length} member{metrics.teamMembers.length !== 1 ? 's' : ''}
+                  </span>
                 </span>
               )}
             </p>
