@@ -23,6 +23,7 @@ export default async function SettingsPage() {
         email={user.email || ''}
         initialFullName={profile?.full_name || ''}
         initialAvatarUrl={profile?.avatar_url || ''}
+        initialTier={(profile?.subscription_tier as any) || 'free'}
       />
 
       <Card className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-white/20 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-none">

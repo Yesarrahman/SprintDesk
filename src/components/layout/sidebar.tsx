@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, CheckSquare, KanbanSquare, CalendarDays, Users, Settings, LogOut, ChevronLeft, ChevronRight, Inbox, Zap } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, KanbanSquare, CalendarDays, Users, Settings, LogOut, ChevronLeft, ChevronRight, Inbox, Zap, FileText, CreditCard, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/ui-store'
@@ -17,13 +17,17 @@ const navigation = [
   { name: 'Kanban Board', href: '/kanban', icon: KanbanSquare },
   { name: 'Calendar', href: '/calendar', icon: CalendarDays },
   { name: 'Team', href: '/team', icon: Users },
+  { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Automations', href: '/automations', icon: Zap },
+  { name: 'Billing', href: '/billing', icon: CreditCard },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { sidebarOpen, toggleSidebar } = useUIStore()
+  const { sidebarOpen, toggleSidebar, activeTier } = useUIStore()
+
+  const isPaid = activeTier === 'pro' || activeTier === 'agency'
 
   return (
     <aside
@@ -32,7 +36,7 @@ export function Sidebar() {
         sidebarOpen ? 'w-64' : 'w-20'
       )}
     >
-      <div className="p-4 flex items-center justify-between">
+      <div className="p-4 flex items-center justify-between shrink-0">
         {sidebarOpen && (
           <div className="flex w-full items-center justify-center pt-2">
             <Image src="/logo.png" alt="SprintDesk Logo" width={350} height={105} className="h-20 w-auto object-contain drop-shadow-sm dark:brightness-0 dark:invert" priority />
@@ -80,12 +84,40 @@ export function Sidebar() {
         </nav>
       </div>
 
-      <div className="p-3 border-t border-slate-200/50 dark:border-slate-800/50">
+      <div className="p-3 border-t border-slate-200/50 dark:border-slate-800/50 space-y-2 shrink-0">
+        {/* Show Upgrade Widget ONLY if free tier */}
+        {!isPaid && sidebarOpen && (
+          <Link href="/billing">
+            <div className="mb-2 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 p-3 text-white cursor-pointer hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md shadow-indigo-500/25">
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles className="h-3.5 w-3.5 text-indigo-200" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-100">Upgrade your plan</span>
+              </div>
+              <p className="text-[11px] text-indigo-200 leading-snug">
+                Unlock PDF Reports, unlimited members &amp; more.
+              </p>
+              <div className="mt-2 flex items-center gap-1 text-white text-[11px] font-semibold">
+                View plans <span className="text-indigo-300">→</span>
+              </div>
+            </div>
+          </Link>
+        )}
+
+        {!isPaid && !sidebarOpen && (
+          <Link href="/billing" title="Upgrade Plan">
+            <div className="flex justify-center mb-1">
+              <div className="h-9 w-9 rounded-lg flex items-center justify-center transition-all shadow-md cursor-pointer bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-indigo-500/25">
+                <Sparkles className="h-4 w-4" />
+              </div>
+            </div>
+          </Link>
+        )}
+
         <form action={logout}>
           <button
             type="submit"
             className={cn(
-              'flex w-full items-center rounded-lg px-3 py-2.5 text-slate-600 hover:bg-slate-100/50 dark:text-slate-400 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-50 transition-colors',
+              'flex w-full items-center rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100/50 dark:text-slate-400 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-50 transition-colors',
               !sidebarOpen && 'justify-center px-0'
             )}
             title={!sidebarOpen ? 'Logout' : undefined}

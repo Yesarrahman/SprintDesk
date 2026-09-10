@@ -23,6 +23,7 @@ type Workspace = {
   id: string
   name: string
   role: string
+  tier?: string
 }
 
 export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
@@ -33,7 +34,7 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isExpanded, setIsExpanded] = useState(true)
-  const { setSidebarOpen } = useUIStore()
+  const { setSidebarOpen, setActiveTier } = useUIStore()
 
   const loadWorkspaces = async () => {
     const result = await fetchWorkspaces()
@@ -47,8 +48,10 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
         const found = result.workspaces.find(w => w.id === activeId)
         if (found) {
           setActiveWorkspace(found)
+          setActiveTier((found as any).tier || 'free')
         } else {
           setActiveWorkspace(result.workspaces[0])
+          setActiveTier((result.workspaces[0] as any).tier || 'free')
           setActiveWorkspaceCookie(result.workspaces[0].id)
         }
       }
@@ -62,6 +65,7 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
 
   const handleSelectWorkspace = async (workspace: Workspace) => {
     setActiveWorkspace(workspace)
+    setActiveTier(workspace.tier || 'free')
     await setActiveWorkspaceCookie(workspace.id)
     toast.success(`Switched to ${workspace.name}`)
     

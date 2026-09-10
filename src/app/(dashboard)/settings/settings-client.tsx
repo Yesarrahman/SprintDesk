@@ -1,22 +1,26 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
+import Link from 'next/link'
 import { toast } from 'sonner'
-import { Loader2, Camera, User } from 'lucide-react'
+import { Loader2, Camera, User, CreditCard } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { cn } from '@/lib/utils'
 import { saveProfile, uploadAvatar } from './actions'
 
 interface SettingsClientProps {
   email: string
   initialFullName: string
   initialAvatarUrl: string
+  initialTier?: 'free' | 'pro' | 'agency' | 'enterprise'
 }
 
-export function SettingsClient({ email, initialFullName, initialAvatarUrl }: SettingsClientProps) {
+export function SettingsClient({ email, initialFullName, initialAvatarUrl, initialTier = 'free' }: SettingsClientProps) {
   const [fullName, setFullName] = useState(initialFullName)
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
@@ -69,6 +73,7 @@ export function SettingsClient({ email, initialFullName, initialAvatarUrl }: Set
   const displaySrc = avatarPreview || avatarUrl
 
   return (
+    <>
     <Card className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-white/20 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-none">
       <CardHeader>
         <CardTitle>Profile</CardTitle>
@@ -163,5 +168,39 @@ export function SettingsClient({ email, initialFullName, initialAvatarUrl }: Set
         </div>
       </CardContent>
     </Card>
+
+    <Card className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-white/20 dark:border-slate-800 shadow-xl shadow-slate-200/20 dark:shadow-none">
+      <CardHeader>
+        <CardTitle>Subscription &amp; Billing</CardTitle>
+        <CardDescription>
+          Manage your plan, payment methods, and invoices for your account and workspaces.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-slate-900 dark:text-white">Active Account Plan:</span>
+            <Badge className={cn(
+              'text-[10px] font-bold uppercase tracking-wider',
+              initialTier === 'pro' ? 'bg-indigo-600 text-white' :
+              initialTier === 'agency' || initialTier === 'enterprise' ? 'bg-purple-600 text-white' :
+              'bg-slate-700 text-white'
+            )}>
+              {initialTier.toUpperCase()}
+            </Badge>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            To view pricing, upgrade your plan, or manage Stripe invoices, visit the Billing portal.
+          </p>
+        </div>
+        <Link href="/billing">
+          <Button variant="outline" className="text-xs font-semibold gap-2 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
+            <CreditCard className="h-3.5 w-3.5" />
+            Manage in Billing →
+          </Button>
+        </Link>
+      </CardContent>
+    </Card>
+    </>
   )
 }

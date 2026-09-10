@@ -7,6 +7,7 @@ export interface Profile {
   id: string
   full_name: string | null
   avatar_url: string | null
+  subscription_tier?: 'free' | 'pro' | 'enterprise' | null
   created_at: string
   updated_at: string
 }
@@ -15,6 +16,7 @@ export interface Workspace {
   id: string
   name: string
   owner_id: string
+  tier?: 'free' | 'pro' | 'enterprise' | null
   created_at: string
   updated_at: string
 }
@@ -99,4 +101,15 @@ export interface ActivityLog {
   entity_type: string | null
   entity_id: string | null
   created_at: string
+}
+
+export interface SubmittedReport {
+  id: string
+  workspace_id: string
+  member_id: string
+  member_name: string
+  range_from: string
+  range_to: string
+  report_data: any
+  submitted_at: string
 }

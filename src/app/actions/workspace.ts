@@ -22,6 +22,7 @@ export async function fetchWorkspaces() {
       workspaces (
         id,
         name,
+        tier,
         created_at
       )
     `)
@@ -37,6 +38,8 @@ export async function fetchWorkspaces() {
     id: item.workspaces.id,
     // @ts-expect-error: Joined column type not inferred
     name: item.workspaces.name,
+    // @ts-expect-error: Joined column type not inferred
+    tier: item.workspaces.tier || 'free',
     // @ts-expect-error: Joined column type not inferred
     created_at: item.workspaces.created_at,
     role: item.role
@@ -58,10 +61,32 @@ export async function createWorkspace(name: string) {
 
   const adminClient = await createAdminClient()
 
+  // 0. Check Free tier limits (max 2 workspaces)
+  const { data: profile } = await adminClient
+    .from('profiles')
+    .select('subscription_tier')
+    .eq('id', user.id)
+    .single()
+
+  const userTier = profile?.subscription_tier || 'free'
+
+  if (userTier === 'free') {
+    const { count: ownedCount } = await adminClient
+      .from('workspaces')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', user.id)
+
+    if ((ownedCount || 0) >= 2) {
+      return {
+        error: 'You have reached the 2-workspace limit on the Free tier. Please upgrade to SprintDesk Pro for unlimited workspaces.',
+      }
+    }
+  }
+
   // 1. Insert Workspace (Use admin client to bypass RLS)
   const { error: wsError } = await adminClient
     .from('workspaces')
-    .insert({ id: newWorkspaceId, name, owner_id: user.id })
+    .insert({ id: newWorkspaceId, name, owner_id: user.id, tier: userTier })
 
   if (wsError) {
     console.error('Error creating workspace:', wsError)
