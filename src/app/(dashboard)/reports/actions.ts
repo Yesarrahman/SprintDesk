@@ -33,7 +33,7 @@ export async function getUserTierAndRole(): Promise<{ error?: string; context?: 
   // 1. Fetch workspace info
   const { data: ws, error: wsErr } = await adminClient
     .from('workspaces')
-    .select('id, name, owner_id, tier')
+    .select('id, name, owner_id, tier, stripe_subscription_id')
     .eq('id', activeWorkspaceId)
     .single()
 
@@ -44,7 +44,7 @@ export async function getUserTierAndRole(): Promise<{ error?: string; context?: 
   // 2. Fetch user profile for subscription_tier & name
   const { data: profile } = await adminClient
     .from('profiles')
-    .select('full_name, subscription_tier')
+    .select('full_name, subscription_tier, stripe_subscription_id')
     .eq('id', user.id)
     .single()
 
@@ -67,14 +67,15 @@ export async function getUserTierAndRole(): Promise<{ error?: string; context?: 
     }
   }
 
-  // Determine effective tier: if workspace tier is pro/enterprise OR user profile tier is pro/enterprise
-  const workspaceTier = (ws.tier as 'free' | 'pro' | 'enterprise') || 'free'
-  const profileTier = (profile?.subscription_tier as 'free' | 'pro' | 'enterprise') || 'free'
+  // Determine effective tier: requires active Stripe subscription on workspace or owner
+  const hasStripe = !!(ws.stripe_subscription_id || profile?.stripe_subscription_id)
+  const workspaceTier = (ws.tier as string) || 'free'
+  const profileTier = (profile?.subscription_tier as string) || 'free'
   
   let effectiveTier: 'free' | 'pro' | 'enterprise' = 'free'
-  if (workspaceTier === 'enterprise' || profileTier === 'enterprise') {
+  if (hasStripe && (workspaceTier === 'enterprise' || profileTier === 'enterprise' || workspaceTier === 'agency' || profileTier === 'agency')) {
     effectiveTier = 'enterprise'
-  } else if (workspaceTier === 'pro' || profileTier === 'pro') {
+  } else if (hasStripe && (workspaceTier === 'pro' || profileTier === 'pro')) {
     effectiveTier = 'pro'
   }
 

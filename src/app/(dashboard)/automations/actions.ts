@@ -1,4 +1,4 @@
-﻿'use server'
+'use server'
 
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
@@ -24,6 +24,15 @@ export async function addAutomation(rule: any) {
     const cookieStore = await cookies()
     const activeWorkspaceId = cookieStore.get('activeWorkspaceId')?.value
     if (!activeWorkspaceId) return { error: 'No workspace' }
+
+    // Enforce Agency tier
+    const { createAdminClient } = await import('@/lib/supabase/server')
+    const admin = await createAdminClient()
+    const { data: ws } = await admin.from('workspaces').select('tier, stripe_subscription_id').eq('id', activeWorkspaceId).single()
+    const isAgency = ws?.tier === 'agency' && !!ws?.stripe_subscription_id
+    if (!isAgency) {
+      return { error: 'Automations require an active SprintDesk Agency subscription.' }
+    }
 
     const { data, error } = await supabase.from('automations').insert({
       workspace_id: activeWorkspaceId,

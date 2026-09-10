@@ -41,6 +41,28 @@ export async function inviteMember(email: string, role: WorkspaceRole) {
 
   const workspaceId = memberData.workspace_id
 
+  // Enforce member limits (max 3 members on Free tier)
+  const { data: ws } = await adminClient
+    .from('workspaces')
+    .select('tier, stripe_subscription_id')
+    .eq('id', workspaceId)
+    .single()
+
+  const isPaidWorkspace = (ws?.tier === 'pro' || ws?.tier === 'agency' || ws?.tier === 'enterprise') && !!ws?.stripe_subscription_id
+
+  if (!isPaidWorkspace) {
+    const { count: currentMemberCount } = await adminClient
+      .from('workspace_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+
+    if ((currentMemberCount || 0) >= 3) {
+      return {
+        error: 'Free workspaces are limited to 3 team members. Upgrade to SprintDesk Pro for unlimited team members.',
+      }
+    }
+  }
+
   // 3. Check if service role key is present
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return { error: 'Server configuration error: SUPABASE_SERVICE_ROLE_KEY is missing.' }
