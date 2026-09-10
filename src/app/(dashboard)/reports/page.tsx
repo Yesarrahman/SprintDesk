@@ -109,15 +109,10 @@ export default async function ReportsPage() {
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 border-t border-indigo-100 dark:border-indigo-950">
-            <Link href="/upgrade">
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs h-9 px-5 gap-2">
-                Upgrade to Pro Plan <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/settings">
-              <Button variant="outline" className="text-xs h-9 text-slate-600 dark:text-slate-300">
-                Switch Tier in Settings (Test Mode)
+          <CardFooter className="flex items-center justify-center pt-6 border-t border-indigo-100 dark:border-indigo-950">
+            <Link href="/billing">
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs h-9 px-6 gap-2 shadow-sm">
+                Upgrade to Pro Plan ($15/mo) <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           </CardFooter>
