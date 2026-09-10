@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function saveProfile(formData: FormData) {
@@ -11,7 +11,8 @@ export async function saveProfile(formData: FormData) {
   const fullName = formData.get('full_name') as string
   if (!fullName?.trim()) return { error: 'Full name is required' }
 
-  const { error } = await supabase
+  const adminClient = await createAdminClient()
+  const { error } = await adminClient
     .from('profiles')
     .update({ full_name: fullName.trim() })
     .eq('id', user.id)
@@ -42,19 +43,20 @@ export async function uploadAvatar(formData: FormData) {
   const fileExt = file.name.split('.').pop()
   const filePath = `${user.id}/avatar.${fileExt}`
 
-  const { error: uploadError } = await supabase.storage
+  const adminClient = await createAdminClient()
+  const { error: uploadError } = await adminClient.storage
     .from('avatars')
     .upload(filePath, file, { upsert: true, contentType: file.type })
 
   if (uploadError) return { error: uploadError.message }
 
-  const { data: { publicUrl } } = supabase.storage
+  const { data: { publicUrl } } = adminClient.storage
     .from('avatars')
     .getPublicUrl(filePath)
 
   const avatarUrl = `${publicUrl}?t=${Date.now()}`
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await adminClient
     .from('profiles')
     .update({ avatar_url: avatarUrl })
     .eq('id', user.id)
