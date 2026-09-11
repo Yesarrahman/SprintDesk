@@ -22,6 +22,7 @@ interface KanbanColumnProps {
   onDeleteTask?: (taskId: string) => void
   onMoveTask?: (taskId: string, newStatus: TaskStatus) => void
   isPersonal?: boolean
+  isPaid?: boolean
   className?: string
 }
 
@@ -35,7 +36,7 @@ const statusColors = {
   archived: 'border-slate-200 dark:border-slate-800 bg-slate-400',
 }
 
-export function KanbanColumn({ column, tasks, role = 'owner', onDeleteTask, onMoveTask, isPersonal = false, className }: KanbanColumnProps) {
+export function KanbanColumn({ column, tasks, role = 'owner', onDeleteTask, onMoveTask, isPersonal = false, isPaid = false, className }: KanbanColumnProps) {
   const taskIds = useMemo(() => tasks.map((t) => t.id), [tasks])
 
   const { setNodeRef, isOver } = useDroppable({
@@ -70,7 +71,7 @@ export function KanbanColumn({ column, tasks, role = 'owner', onDeleteTask, onMo
       <div className="flex-1 p-3 overflow-y-auto flex flex-col gap-3 min-h-[150px]">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} role={role} onDelete={onDeleteTask} onMove={onMoveTask} isPersonal={isPersonal} />
+            <TaskCard key={task.id} task={task} role={role} onDelete={onDeleteTask} onMove={onMoveTask} isPersonal={isPersonal} isPaid={isPaid} />
           ))}
         </SortableContext>
         

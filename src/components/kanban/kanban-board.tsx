@@ -41,9 +41,10 @@ interface KanbanBoardProps {
   role?: string
   workspaceId: string
   isPersonal?: boolean
+  isPaid?: boolean
 }
 
-export function KanbanBoard({ initialTasks, initialColumns, teamMembers = [], role = 'owner', workspaceId, isPersonal = false }: KanbanBoardProps) {
+export function KanbanBoard({ initialTasks, initialColumns, teamMembers = [], role = 'owner', workspaceId, isPersonal = false, isPaid = false }: KanbanBoardProps) {
   const { tasks, setTasks, moveTask, removeTask, columns, setColumns, assigneeFilter, setAssigneeFilter } = useKanbanStore()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [isMounted, setIsMounted] = useState(false)
@@ -390,6 +391,7 @@ export function KanbanBoard({ initialTasks, initialColumns, teamMembers = [], ro
                 onMoveTask={handleMoveTask}
                 role={role}
                 isPersonal={isPersonal}
+                isPaid={isPaid}
               />
             ))}
             {isPersonal && (

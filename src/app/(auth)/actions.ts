@@ -58,13 +58,24 @@ export async function logout() {
   redirect('/login')
 }
 
+import { headers } from 'next/headers'
+
 export async function resetPassword(formData: FormData) {
   const supabase = await createClient()
 
   const email = formData.get('email') as string
+  if (!email?.trim()) {
+    return { error: 'Please enter your email address' }
+  }
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SUPABASE_URL ? '' : ''}${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/reset-password`,
+  // Dynamically resolve app origin so this works on both localhost and live deployment
+  const headersList = await headers()
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000'
+  const proto = headersList.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https')
+  const origin = `${proto}://${host}`
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: `${origin}/auth/callback?next=/reset-password`,
   })
 
   if (error) {

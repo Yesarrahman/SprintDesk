@@ -188,12 +188,16 @@ export function IndividualReportDocument({ data, generatedByName }: IndividualRe
             <Text style={styles.kpiLabel}>Tasks Assigned</Text>
           </View>
           <View style={styles.kpiCard}>
+            <Text style={[styles.kpiValue, { color: '#8B5CF6' }]}>{summary?.totalHoursLogged || '0h 0m'}</Text>
+            <Text style={styles.kpiLabel}>Hours Tracked</Text>
+          </View>
+          <View style={styles.kpiCard}>
             <Text style={[styles.kpiValue, { color: '#16A34A' }]}>{summary?.tasksCompleted || 0}</Text>
             <Text style={styles.kpiLabel}>Tasks Completed</Text>
           </View>
           <View style={styles.kpiCard}>
             <Text style={[styles.kpiValue, { color: '#4F46E5' }]}>{summary?.completionRate || 0}%</Text>
-            <Text style={styles.kpiLabel}>Personal Completion Rate</Text>
+            <Text style={styles.kpiLabel}>Completion Rate</Text>
           </View>
           <View style={styles.kpiCard}>
             <Text style={[styles.kpiValue, { color: '#DC2626' }]}>{summary?.overdueCount || 0}</Text>
@@ -203,19 +207,16 @@ export function IndividualReportDocument({ data, generatedByName }: IndividualRe
             <Text style={[styles.kpiValue, { color: '#2563EB' }]}>{summary?.inProgressCount || 0}</Text>
             <Text style={styles.kpiLabel}>In Progress</Text>
           </View>
-          <View style={styles.kpiCard}>
-            <Text style={[styles.kpiValue, { color: '#64748B' }]}>{summary?.tasksCreated || 0}</Text>
-            <Text style={styles.kpiLabel}>Tasks Created by Member</Text>
-          </View>
         </View>
 
         {/* Section 2: Completed Tasks */}
         <Text style={styles.sectionTitle}>Completed Tasks in Period ({completedList.length})</Text>
         <View style={styles.table}>
           <View style={styles.tableHeader}>
-            <Text style={[styles.colHeader, { flex: 5 }]}>Task Title</Text>
+            <Text style={[styles.colHeader, { flex: 4.5 }]}>Task Title</Text>
             <Text style={[styles.colHeader, { flex: 1.5, textAlign: 'center' }]}>Priority</Text>
-            <Text style={[styles.colHeader, { flex: 2.5, textAlign: 'right' }]}>Completed Date</Text>
+            <Text style={[styles.colHeader, { flex: 2, textAlign: 'center' }]}>Time Spent</Text>
+            <Text style={[styles.colHeader, { flex: 2, textAlign: 'right' }]}>Completed Date</Text>
           </View>
           {completedList.length === 0 ? (
             <View style={styles.tableRow}>
@@ -226,11 +227,14 @@ export function IndividualReportDocument({ data, generatedByName }: IndividualRe
           ) : (
             completedList.slice(0, 10).map((t: any, idx: number) => (
               <View key={idx} style={[styles.tableRow, idx % 2 === 1 ? styles.tableRowAlt : {}]}>
-                <Text style={[styles.colCell, { flex: 5 }]}>{t.title}</Text>
+                <Text style={[styles.colCell, { flex: 4.5 }]}>{t.title}</Text>
                 <Text style={[styles.colCell, { flex: 1.5, textAlign: 'center', textTransform: 'capitalize' }]}>
                   {t.priority}
                 </Text>
-                <Text style={[styles.colCell, { flex: 2.5, textAlign: 'right' }]}>
+                <Text style={[styles.colCell, { flex: 2, textAlign: 'center', color: '#8B5CF6' }]}>
+                  {t.actual_duration || '-'}
+                </Text>
+                <Text style={[styles.colCell, { flex: 2, textAlign: 'right', color: '#64748B' }]}>
                   {t.completed_at ? new Date(t.completed_at).toISOString().split('T')[0] : '-'}
                 </Text>
               </View>

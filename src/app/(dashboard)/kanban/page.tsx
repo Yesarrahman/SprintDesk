@@ -15,6 +15,7 @@ export default async function KanbanPage() {
 
   let role = 'owner'
   let isPersonal = false
+  let isPaid = false
   let workspaceName = 'Workspace'
   
   if (user && activeWorkspaceId) {
@@ -32,9 +33,22 @@ export default async function KanbanPage() {
     const adminClient = await createAdminClient()
     const { data: ws } = await adminClient
       .from('workspaces')
-      .select('name, owner_id')
+      .select('name, owner_id, tier, stripe_subscription_id')
       .eq('id', activeWorkspaceId)
       .single()
+
+    const { data: profile } = await adminClient
+      .from('profiles')
+      .select('subscription_tier, stripe_subscription_id')
+      .eq('id', user.id)
+      .single()
+
+    if (
+      (profile?.subscription_tier === 'pro' || profile?.subscription_tier === 'agency') && !!profile?.stripe_subscription_id ||
+      (ws?.tier === 'pro' || ws?.tier === 'agency') && !!ws?.stripe_subscription_id
+    ) {
+      isPaid = true
+    }
       
     if (ws) {
       workspaceName = ws.name
@@ -85,6 +99,7 @@ export default async function KanbanPage() {
         role={role} 
         workspaceId={activeWorkspaceId!} 
         isPersonal={isPersonal} 
+        isPaid={isPaid}
       />
     </div>
   )

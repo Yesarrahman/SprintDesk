@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
-import { Loader2, Plus, Trash2, Link as LinkIcon, MessageSquare } from 'lucide-react'
+import { Loader2, Plus, Trash2, Link as LinkIcon, MessageSquare, Lock } from 'lucide-react'
+import Link from 'next/link'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -66,9 +67,10 @@ interface EditTaskDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   isPersonal?: boolean
+  isPaid?: boolean
 }
 
-export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }: EditTaskDialogProps) {
+export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false, isPaid = false }: EditTaskDialogProps) {
   const [activeTab, setActiveTab] = useState<'details' | 'subtasks' | 'comments' | 'links'>('details')
   const [isLoading, setIsLoading] = useState(false)
   const [teamMembers, setTeamMembers] = useState<{user_id: string, full_name: string}[]>([])
@@ -256,12 +258,23 @@ export function EditTaskDialog({ task, open, onOpenChange, isPersonal = false }:
           <div>
             <div className="flex items-center gap-4">
               <DialogTitle>Edit Task</DialogTitle>
-              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-800">
-                 <div className="text-sm font-mono text-slate-700 dark:text-slate-300 w-16 text-center">{formatTime(timeState.totalSeconds)}</div>
-                 <Button size="sm" variant={timeState.isRunning ? 'destructive' : 'default'} className="h-6 text-xs px-2" onClick={handleToggleTimer}>
-                   {timeState.isRunning ? 'Stop' : 'Start'}
-                 </Button>
-              </div>
+              {isPaid ? (
+                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-800">
+                  <div className="text-sm font-mono text-slate-700 dark:text-slate-300 w-16 text-center">{formatTime(timeState.totalSeconds)}</div>
+                  <Button size="sm" variant={timeState.isRunning ? 'destructive' : 'default'} className="h-6 text-xs px-2" onClick={handleToggleTimer}>
+                    {timeState.isRunning ? 'Stop' : 'Start'}
+                  </Button>
+                </div>
+              ) : (
+                <Link
+                  href="/billing"
+                  className="flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 px-2.5 py-1 rounded-md text-xs font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                  title="Time tracking is available on SprintDesk Pro. Click to upgrade."
+                >
+                  <Lock className="h-3 w-3" />
+                  <span>Time Tracking (Pro)</span>
+                </Link>
+              )}
             </div>
             <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
                ID: <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">{task.id.split('-')[0]}</span>

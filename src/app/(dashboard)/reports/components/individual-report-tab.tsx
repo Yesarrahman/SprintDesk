@@ -284,12 +284,21 @@ export function IndividualReportTab({
           </div>
 
           {/* KPI Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
             <Card className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border-slate-200 dark:border-slate-800">
               <CardContent className="p-4">
                 <p className="text-xs font-semibold text-slate-400 uppercase">Assigned</p>
                 <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
                   {reportData.summary.tasksAssigned}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border-slate-200 dark:border-slate-800">
+              <CardContent className="p-4">
+                <p className="text-xs font-semibold text-purple-500 uppercase">Hours Tracked</p>
+                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+                  {reportData.summary.totalHoursLogged || '0h 0m'}
                 </p>
               </CardContent>
             </Card>
@@ -355,6 +364,7 @@ export function IndividualReportTab({
                     <TableRow>
                       <TableHead>Title</TableHead>
                       <TableHead className="text-center">Priority</TableHead>
+                      <TableHead className="text-center">Time Spent</TableHead>
                       <TableHead className="text-right">Completed Date</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -366,6 +376,9 @@ export function IndividualReportTab({
                           <Badge variant="outline" className="text-[10px] capitalize">
                             {t.priority}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-center text-xs font-mono text-purple-600 dark:text-purple-400">
+                          {t.actual_duration || '-'}
                         </TableCell>
                         <TableCell className="text-right text-xs text-slate-400">
                           {t.completed_at ? new Date(t.completed_at).toISOString().split('T')[0] : '-'}

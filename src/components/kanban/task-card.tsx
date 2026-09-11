@@ -32,6 +32,7 @@ interface TaskCardProps {
   onDelete?: (taskId: string) => void
   onMove?: (taskId: string, newStatus: TaskStatus) => void
   isPersonal?: boolean
+  isPaid?: boolean
 }
 
 const priorityBgColors = {
@@ -41,7 +42,7 @@ const priorityBgColors = {
   urgent: 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400',
 }
 
-export function TaskCard({ task, role = 'owner', onDelete, onMove, isPersonal = false }: TaskCardProps) {
+export function TaskCard({ task, role = 'owner', onDelete, onMove, isPersonal = false, isPaid = false }: TaskCardProps) {
   const {
     setNodeRef,
     attributes,
@@ -79,7 +80,7 @@ export function TaskCard({ task, role = 'owner', onDelete, onMove, isPersonal = 
 
   return (
     <>
-      <EditTaskDialog task={task} open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} isPersonal={isPersonal} />
+      <EditTaskDialog task={task} open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} isPersonal={isPersonal} isPaid={isPaid} />
       <motion.div
         layout
       initial={{ opacity: 0, y: 10 }}

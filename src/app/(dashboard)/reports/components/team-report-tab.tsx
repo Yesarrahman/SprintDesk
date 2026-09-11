@@ -152,12 +152,21 @@ export function TeamReportTab({ workspaceId, userName }: TeamReportTabProps) {
       {reportData && (
         <div className="space-y-6">
           {/* KPI Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
             <Card className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border-slate-200 dark:border-slate-800">
               <CardContent className="p-4">
                 <p className="text-xs font-semibold text-slate-400 uppercase">Total Tasks</p>
                 <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
                   {reportData.summary.totalTasks}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md border-slate-200 dark:border-slate-800">
+              <CardContent className="p-4">
+                <p className="text-xs font-semibold text-purple-500 uppercase">Hours Tracked</p>
+                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+                  {reportData.summary.totalTeamHours || '0h 0m'}
                 </p>
               </CardContent>
             </Card>
@@ -213,10 +222,10 @@ export function TeamReportTab({ workspaceId, userName }: TeamReportTabProps) {
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Users className="h-4 w-4 text-indigo-500" />
-                Team Member Workload & Completion
+                Team Member Workload & Hours
               </CardTitle>
               <CardDescription className="text-xs">
-                Performance per member within the selected timeframe.
+                Performance and time logged per member within the selected timeframe.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -229,6 +238,7 @@ export function TeamReportTab({ workspaceId, userName }: TeamReportTabProps) {
                       <TableHead>Member</TableHead>
                       <TableHead className="text-center">Assigned</TableHead>
                       <TableHead className="text-center">Completed</TableHead>
+                      <TableHead className="text-center">Hours Logged</TableHead>
                       <TableHead className="text-center">Overdue</TableHead>
                       <TableHead className="text-right">Completion Rate</TableHead>
                     </TableRow>
@@ -240,6 +250,9 @@ export function TeamReportTab({ workspaceId, userName }: TeamReportTabProps) {
                         <TableCell className="text-center text-xs">{m.assigned}</TableCell>
                         <TableCell className="text-center text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
                           {m.completed}
+                        </TableCell>
+                        <TableCell className="text-center text-xs font-mono text-purple-600 dark:text-purple-400 font-medium">
+                          {m.hours_logged || '0h 0m'}
                         </TableCell>
                         <TableCell className="text-center text-xs">
                           {m.overdue > 0 ? (

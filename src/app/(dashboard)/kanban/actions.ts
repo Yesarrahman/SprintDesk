@@ -608,7 +608,7 @@ export async function toggleTaskTimer(taskId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
-    // Check for an active timer
+    // Check for an active timer first (always allow stopping an active timer)
     const { data: activeLog } = await supabase
       .from('time_logs')
       .select('*')
@@ -616,6 +616,32 @@ export async function toggleTaskTimer(taskId: string) {
       .eq('user_id', user.id)
       .is('end_time', null)
       .single()
+
+    if (!activeLog) {
+      // Starting timer requires Pro or Agency plan
+      const adminClient = await createAdminClient()
+      const { data: profile } = await adminClient
+        .from('profiles')
+        .select('subscription_tier, stripe_subscription_id')
+        .eq('id', user.id)
+        .single()
+
+      // Also check task's workspace tier
+      const { data: taskData } = await adminClient
+        .from('tasks')
+        .select('workspace_id, workspaces:workspace_id(tier, stripe_subscription_id)')
+        .eq('id', taskId)
+        .single()
+
+      const ws = (taskData as any)?.workspaces
+      const isPaid =
+        (profile?.subscription_tier === 'pro' || profile?.subscription_tier === 'agency') && !!profile?.stripe_subscription_id ||
+        (ws?.tier === 'pro' || ws?.tier === 'agency') && !!ws?.stripe_subscription_id
+
+      if (!isPaid) {
+        return { error: 'Time tracking is a SprintDesk Pro feature. Please upgrade to start tracking time.' }
+      }
+    }
 
     if (activeLog) {
       // Stop timer

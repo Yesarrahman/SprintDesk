@@ -11,10 +11,18 @@ export async function saveProfile(formData: FormData) {
   const fullName = formData.get('full_name') as string
   if (!fullName?.trim()) return { error: 'Full name is required' }
 
+  const trimmedName = fullName.trim()
+
+  // 1. Update Auth metadata so Supabase email templates can access {{ .Data.full_name }}
+  await supabase.auth.updateUser({
+    data: { full_name: trimmedName },
+  })
+
+  // 2. Update profiles table
   const adminClient = await createAdminClient()
   const { error } = await adminClient
     .from('profiles')
-    .update({ full_name: fullName.trim() })
+    .update({ full_name: trimmedName })
     .eq('id', user.id)
 
   if (error) return { error: error.message }

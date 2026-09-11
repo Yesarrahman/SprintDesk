@@ -178,39 +178,40 @@ export function TeamReportDocument({ data, generatedByName }: TeamReportPdfProps
         <View style={styles.kpiGrid}>
           <View style={styles.kpiCard}>
             <Text style={styles.kpiValue}>{summary?.totalTasks || 0}</Text>
-            <Text style={styles.kpiLabel}>Total Tasks in Period</Text>
+            <Text style={styles.kpiLabel}>Total Tasks</Text>
+          </View>
+          <View style={styles.kpiCard}>
+            <Text style={[styles.kpiValue, { color: '#8B5CF6' }]}>{summary?.totalTeamHours || '0h 0m'}</Text>
+            <Text style={styles.kpiLabel}>Hours Tracked</Text>
           </View>
           <View style={styles.kpiCard}>
             <Text style={[styles.kpiValue, { color: '#16A34A' }]}>{summary?.completedCount || 0}</Text>
-            <Text style={styles.kpiLabel}>Completed Tasks</Text>
+            <Text style={styles.kpiLabel}>Completed</Text>
           </View>
           <View style={styles.kpiCard}>
             <Text style={[styles.kpiValue, { color: '#4F46E5' }]}>{summary?.completionRate || 0}%</Text>
-            <Text style={styles.kpiLabel}>Overall Completion Rate</Text>
+            <Text style={styles.kpiLabel}>Completion Rate</Text>
           </View>
           <View style={styles.kpiCard}>
             <Text style={[styles.kpiValue, { color: '#DC2626' }]}>{summary?.overdueCount || 0}</Text>
-            <Text style={styles.kpiLabel}>Active Overdue Tasks</Text>
+            <Text style={styles.kpiLabel}>Overdue</Text>
           </View>
           <View style={styles.kpiCard}>
             <Text style={[styles.kpiValue, { color: '#2563EB' }]}>{summary?.inProgressCount || 0}</Text>
-            <Text style={styles.kpiLabel}>In Progress / Review</Text>
-          </View>
-          <View style={styles.kpiCard}>
-            <Text style={[styles.kpiValue, { color: '#64748B' }]}>{summary?.cancelledCount || 0}</Text>
-            <Text style={styles.kpiLabel}>Cancelled Tasks</Text>
+            <Text style={styles.kpiLabel}>In Progress</Text>
           </View>
         </View>
 
         {/* Section 2: Team Member Workload */}
-        <Text style={styles.sectionTitle}>Team Workload & Completion</Text>
+        <Text style={styles.sectionTitle}>Team Workload & Hours</Text>
         <View style={styles.table}>
           <View style={styles.tableHeader}>
             <Text style={[styles.colHeader, { flex: 3 }]}>Member</Text>
-            <Text style={[styles.colHeader, { flex: 1.5, textAlign: 'center' }]}>Assigned</Text>
-            <Text style={[styles.colHeader, { flex: 1.5, textAlign: 'center' }]}>Completed</Text>
-            <Text style={[styles.colHeader, { flex: 1.5, textAlign: 'center' }]}>Overdue</Text>
-            <Text style={[styles.colHeader, { flex: 2, textAlign: 'right' }]}>Rate</Text>
+            <Text style={[styles.colHeader, { flex: 1.2, textAlign: 'center' }]}>Assigned</Text>
+            <Text style={[styles.colHeader, { flex: 1.2, textAlign: 'center' }]}>Completed</Text>
+            <Text style={[styles.colHeader, { flex: 1.5, textAlign: 'center' }]}>Hours</Text>
+            <Text style={[styles.colHeader, { flex: 1.2, textAlign: 'center' }]}>Overdue</Text>
+            <Text style={[styles.colHeader, { flex: 1.5, textAlign: 'right' }]}>Rate</Text>
           </View>
           {memberWorkload.length === 0 ? (
             <View style={styles.tableRow}>
@@ -222,12 +223,13 @@ export function TeamReportDocument({ data, generatedByName }: TeamReportPdfProps
             memberWorkload.slice(0, 10).map((m: any, idx: number) => (
               <View key={idx} style={[styles.tableRow, idx % 2 === 1 ? styles.tableRowAlt : {}]}>
                 <Text style={[styles.colCell, { flex: 3, fontWeight: 'medium' }]}>{m.member_name}</Text>
-                <Text style={[styles.colCell, { flex: 1.5, textAlign: 'center' }]}>{m.assigned}</Text>
-                <Text style={[styles.colCell, { flex: 1.5, textAlign: 'center', color: '#16A34A' }]}>{m.completed}</Text>
-                <Text style={[styles.colCell, { flex: 1.5, textAlign: 'center', color: m.overdue > 0 ? '#DC2626' : '#64748B' }]}>
+                <Text style={[styles.colCell, { flex: 1.2, textAlign: 'center' }]}>{m.assigned}</Text>
+                <Text style={[styles.colCell, { flex: 1.2, textAlign: 'center', color: '#16A34A' }]}>{m.completed}</Text>
+                <Text style={[styles.colCell, { flex: 1.5, textAlign: 'center', color: '#8B5CF6' }]}>{m.hours_logged || '0h 0m'}</Text>
+                <Text style={[styles.colCell, { flex: 1.2, textAlign: 'center', color: m.overdue > 0 ? '#DC2626' : '#64748B' }]}>
                   {m.overdue}
                 </Text>
-                <Text style={[styles.colCell, { flex: 2, textAlign: 'right', fontWeight: 'bold' }]}>
+                <Text style={[styles.colCell, { flex: 1.5, textAlign: 'right', fontWeight: 'bold' }]}>
                   {m.completion_rate}%
                 </Text>
               </View>

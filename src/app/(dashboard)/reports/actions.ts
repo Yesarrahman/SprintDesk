@@ -265,14 +265,53 @@ export async function fetchTeamReportData(workspaceId: string, fromDate: string,
     }
   })
 
+  // Fetch time logs for workspace tasks in this date range
+  const taskIds = allTasks.map((t) => t.id)
+  let totalTeamSeconds = 0
+  const memberSecondsMap: Record<string, number> = {}
+
+  if (taskIds.length > 0) {
+    const { data: timeLogs } = await adminClient
+      .from('time_logs')
+      .select('task_id, user_id, duration_seconds, start_time')
+      .in('task_id', taskIds)
+      .gte('start_time', `${fromDate}T00:00:00`)
+      .lte('start_time', `${toDate}T23:59:59.999`)
+
+    if (timeLogs) {
+      timeLogs.forEach((log) => {
+        const secs = log.duration_seconds || 0
+        totalTeamSeconds += secs
+        if (log.user_id) {
+          memberSecondsMap[log.user_id] = (memberSecondsMap[log.user_id] || 0) + secs
+        }
+      })
+    }
+  }
+
+  const formatHoursMinutes = (totalSeconds: number) => {
+    const hrs = Math.floor(totalSeconds / 3600)
+    const mins = Math.floor((totalSeconds % 3600) / 60)
+    if (hrs === 0 && mins === 0) return '0h 0m'
+    return `${hrs}h ${mins}m`
+  }
+
   // 4. Per-Member Workload Table
-  const workloadMap: Record<string, { member_name: string; assigned: number; completed: number; overdue: number }> = {}
+  const workloadMap: Record<string, { member_name: string; assigned: number; completed: number; overdue: number; hours_logged: string; total_seconds: number }> = {}
 
   rangeTasks.forEach((t) => {
     const key = t.assigned_to || 'unassigned'
     const name = (t.profiles as any)?.full_name || (key === 'unassigned' ? 'Unassigned' : 'Team Member')
     if (!workloadMap[key]) {
-      workloadMap[key] = { member_name: name, assigned: 0, completed: 0, overdue: 0 }
+      const userSecs = memberSecondsMap[key] || 0
+      workloadMap[key] = {
+        member_name: name,
+        assigned: 0,
+        completed: 0,
+        overdue: 0,
+        hours_logged: formatHoursMinutes(userSecs),
+        total_seconds: userSecs,
+      }
     }
     workloadMap[key].assigned++
     if (t.status === 'completed') {
@@ -332,6 +371,8 @@ export async function fetchTeamReportData(workspaceId: string, fromDate: string,
         overdueCount: overdueTasks.length,
         inProgressCount,
         cancelledCount,
+        totalTeamHours: formatHoursMinutes(totalTeamSeconds),
+        totalTeamSeconds,
       },
       statusCounts,
       priorityCounts,
@@ -461,6 +502,36 @@ export async function fetchIndividualReportData(
     if (statusCounts[t.status] !== undefined) statusCounts[t.status]++
   })
 
+  // Fetch time logs for this member's tasks in this date range
+  const memberTaskIds = tasks.map((t) => t.id)
+  let totalPersonalSeconds = 0
+  const taskSecondsMap: Record<string, number> = {}
+
+  if (memberTaskIds.length > 0) {
+    const { data: memberLogs } = await adminClient
+      .from('time_logs')
+      .select('task_id, duration_seconds, start_time')
+      .eq('user_id', memberId)
+      .in('task_id', memberTaskIds)
+      .gte('start_time', `${fromDate}T00:00:00`)
+      .lte('start_time', `${toDate}T23:59:59.999`)
+
+    if (memberLogs) {
+      memberLogs.forEach((log) => {
+        const s = log.duration_seconds || 0
+        totalPersonalSeconds += s
+        taskSecondsMap[log.task_id] = (taskSecondsMap[log.task_id] || 0) + s
+      })
+    }
+  }
+
+  const formatHoursMinutes = (totalSeconds: number) => {
+    const hrs = Math.floor(totalSeconds / 3600)
+    const mins = Math.floor((totalSeconds % 3600) / 60)
+    if (hrs === 0 && mins === 0) return '0h 0m'
+    return `${hrs}h ${mins}m`
+  }
+
   // Priority breakdown for this member
   const priorityCounts: Record<string, number> = {
     urgent: 0,
@@ -489,6 +560,8 @@ export async function fetchIndividualReportData(
         overdueCount: overdueTasks.length,
         tasksCreated,
         inProgressCount: inProgressTasks.length,
+        totalHoursLogged: formatHoursMinutes(totalPersonalSeconds),
+        totalSeconds: totalPersonalSeconds,
       },
       statusCounts,
       priorityCounts,
@@ -498,7 +571,7 @@ export async function fetchIndividualReportData(
         priority: t.priority,
         completed_at: t.completed_at || t.updated_at,
         estimated_duration: t.estimated_duration,
-        actual_duration: t.actual_duration,
+        actual_duration: taskSecondsMap[t.id] ? formatHoursMinutes(taskSecondsMap[t.id]) : t.actual_duration,
       })),
       overdueList: overdueTasks.slice(0, 20),
       inProgressList: inProgressTasks.slice(0, 20).map((t) => ({
