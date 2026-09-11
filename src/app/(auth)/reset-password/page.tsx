@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { updatePassword } from '../actions'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
 const resetSchema = z
   .object({
@@ -33,6 +35,7 @@ const resetSchema = z
 type ResetFormValues = z.infer<typeof resetSchema>
 
 export default function ResetPasswordPage() {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -47,16 +50,26 @@ export default function ResetPasswordPage() {
 
   async function onSubmit(data: ResetFormValues) {
     setIsLoading(true)
+
+    // First try the server action
     const formData = new FormData()
     formData.append('password', data.password)
 
     const result = await updatePassword(formData)
 
     if (result?.error) {
-      toast.error(result.error)
-      setIsLoading(false)
+      // If server action says auth session missing, update directly via browser client
+      const supabase = createClient()
+      const { error: clientError } = await supabase.auth.updateUser({ password: data.password })
+      if (clientError) {
+        toast.error(clientError.message)
+        setIsLoading(false)
+        return
+      }
+      toast.success('Password updated successfully!')
+      router.push('/dashboard')
+      return
     }
-    // On success, the server action redirects to /dashboard
   }
 
   return (
