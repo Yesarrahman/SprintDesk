@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useTransition } from 'react'
+import Image from 'next/image'
 import { createCheckoutSession, createCustomerPortalSession, type BillingInfo } from './actions'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -247,16 +248,17 @@ export function BillingClient({ billingInfo }: BillingClientProps) {
                 </span>
               </div>
 
-              <div className="flex items-center gap-3">
-                {tier === 'pro' ? (
-                  <div className="h-10 w-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-500/30">
-                    <Sparkles className="h-5 w-5 text-white" />
-                  </div>
-                ) : (
-                  <div className="h-10 w-10 rounded-xl bg-purple-600 flex items-center justify-center shadow-md shadow-purple-500/30">
-                    <Building2 className="h-5 w-5 text-white" />
-                  </div>
-                )}
+              <div className="flex items-center gap-3.5">
+                <div className="h-11 w-11 rounded-xl overflow-hidden bg-white dark:bg-slate-800 p-1 flex items-center justify-center shadow-md border border-indigo-200/80 dark:border-indigo-800/80 shrink-0">
+                  <Image
+                    src="/sd-logo.png"
+                    alt="SprintDesk Logo"
+                    width={44}
+                    height={44}
+                    className="h-full w-full object-contain"
+                    priority
+                  />
+                </div>
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
                     {tier === 'pro' ? 'SprintDesk Pro' : 'SprintDesk Agency'}
