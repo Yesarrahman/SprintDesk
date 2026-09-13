@@ -51,7 +51,7 @@ export default async function DashboardPage() {
     
     if (!isPersonal) {
       // Fetch all tasks for this team workspace
-      const { data: tasksData } = await supabase
+      const { data: tasksData } = await adminClient
         .from('tasks')
         .select('id, title, status, priority, due_date, assigned_to, completed_at, updated_at, profiles:assigned_to(full_name)')
         .eq('workspace_id', activeWorkspaceId)

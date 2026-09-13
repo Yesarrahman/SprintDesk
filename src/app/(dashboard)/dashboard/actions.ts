@@ -104,19 +104,47 @@ export async function fetchDashboardMetrics() {
       completed: count
   }))
 
-  // Fetch Team Members
+  // Fetch Team Members & Owner
   let teamMembers: any[] = []
   if (activeWorkspaceId) {
     const { createAdminClient } = await import('@/lib/supabase/server')
     const adminClient = await createAdminClient()
+    
+    // Include owner
+    const { data: ws } = await adminClient
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', activeWorkspaceId)
+      .single()
+
+    const memberMap = new Map<string, any>()
+
+    if (ws?.owner_id) {
+      const { data: ownerProfile } = await adminClient
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .eq('id', ws.owner_id)
+        .single()
+      if (ownerProfile) {
+        memberMap.set(ownerProfile.id, ownerProfile)
+      }
+    }
+
     const { data: members } = await adminClient
       .from('workspace_members')
       .select('profiles(id, full_name, avatar_url)')
       .eq('workspace_id', activeWorkspaceId)
     
     if (members) {
-      teamMembers = members.map((m: any) => m.profiles).filter(Boolean)
+      members.forEach((m: any) => {
+        const prof = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
+        if (prof?.id && !memberMap.has(prof.id)) {
+          memberMap.set(prof.id, prof)
+        }
+      })
     }
+
+    teamMembers = Array.from(memberMap.values())
   }
 
   return {

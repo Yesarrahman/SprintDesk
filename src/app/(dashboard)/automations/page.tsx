@@ -64,7 +64,7 @@ export default async function AutomationsPage() {
               Automations are locked for this workspace
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              The Automations Engine is exclusively available on <strong>SprintDesk Agency</strong> ($29/mo or $195/yr). Upgrade today to unlock unlimited automated rules.
+              The Automations Engine is exclusively available on <strong>SprintDesk Agency</strong> ($29/mo or $26.10/mo billed annually at $313/yr). Upgrade today to unlock unlimited automated rules.
             </p>
           </div>
 
@@ -72,7 +72,7 @@ export default async function AutomationsPage() {
             <Link href="/billing">
               <Button className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs h-10 px-6 gap-2 shadow-lg shadow-purple-500/25">
                 <Sparkles className="h-4 w-4" />
-                Upgrade to SprintDesk Agency ($29/mo)
+                Upgrade to SprintDesk Agency
               </Button>
             </Link>
           </div>
