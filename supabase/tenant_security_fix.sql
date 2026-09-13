@@ -1,27 +1,31 @@
 -- ====================================================================
--- SprintDesk Multi-Tenant Security & OWASP ASVS Remediation Migration
--- Drops ALL existing duplicate/permissive policies on tasks & automations
--- and applies strict workspace membership isolation.
+-- SprintDesk Full Multi-Tenant Security & RLS Recursion Fix
+-- 1. Eliminates infinite recursion on workspace_members & workspaces
+-- 2. Makes get_user_workspace_ids() non-inlined (plpgsql SECURITY DEFINER)
+-- 3. Enables clean task queries with profiles:assigned_to joins
 -- ====================================================================
 
--- 1. Helper function: Get user workspace IDs with SECURITY DEFINER
+-- 1. Helper function: Non-inlined plpgsql SECURITY DEFINER
 DROP FUNCTION IF EXISTS public.get_user_workspace_ids() CASCADE;
 
 CREATE OR REPLACE FUNCTION public.get_user_workspace_ids()
 RETURNS SETOF UUID
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 STABLE
 AS $$
-  SELECT workspace_id FROM workspace_members WHERE user_id = auth.uid()
-  UNION
-  SELECT id FROM workspaces WHERE owner_id = auth.uid();
+BEGIN
+  RETURN QUERY
+    SELECT workspace_id FROM workspace_members WHERE user_id = auth.uid()
+    UNION
+    SELECT id FROM workspaces WHERE owner_id = auth.uid();
+END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_user_workspace_ids() TO authenticated;
 
--- 2. Drop ALL existing policies on tasks & automations dynamically
+-- 2. Drop ALL policies on workspace_members, workspaces, tasks, automations, time_logs, profiles
 DO $$ 
 DECLARE 
     pol RECORD;
@@ -30,13 +34,54 @@ BEGIN
       SELECT policyname, tablename 
       FROM pg_policies 
       WHERE schemaname = 'public' 
-        AND tablename IN ('tasks', 'automations')
+        AND tablename IN ('workspace_members', 'workspaces', 'tasks', 'automations', 'time_logs', 'profiles')
     ) LOOP 
         EXECUTE format('DROP POLICY IF EXISTS %I ON %I', pol.policyname, pol.tablename); 
     END LOOP; 
 END $$;
 
--- 3. SECURE `tasks` TABLE
+-- 3. SECURE `workspaces` TABLE (No recursion)
+ALTER TABLE workspaces ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view workspaces they belong to"
+ON workspaces FOR SELECT
+TO authenticated
+USING (id IN (SELECT public.get_user_workspace_ids()));
+
+CREATE POLICY "Users can create workspaces"
+ON workspaces FOR INSERT
+TO authenticated
+WITH CHECK (owner_id = auth.uid());
+
+CREATE POLICY "Owners can update their workspaces"
+ON workspaces FOR UPDATE
+TO authenticated
+USING (owner_id = auth.uid());
+
+CREATE POLICY "Owners can delete their workspaces"
+ON workspaces FOR DELETE
+TO authenticated
+USING (owner_id = auth.uid());
+
+-- 4. SECURE `workspace_members` TABLE (No recursion)
+ALTER TABLE workspace_members ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view workspace memberships"
+ON workspace_members FOR SELECT
+TO authenticated
+USING (
+  user_id = auth.uid()
+  OR workspace_id IN (SELECT public.get_user_workspace_ids())
+);
+
+CREATE POLICY "Owners and admins can manage memberships"
+ON workspace_members FOR ALL
+TO authenticated
+USING (
+  workspace_id IN (SELECT public.get_user_workspace_ids())
+);
+
+-- 5. SECURE `tasks` TABLE
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can read tasks in their workspaces"
@@ -59,7 +104,7 @@ ON tasks FOR DELETE
 TO authenticated
 USING (workspace_id IN (SELECT public.get_user_workspace_ids()));
 
--- 4. SECURE `automations` TABLE
+-- 6. SECURE `automations` TABLE
 ALTER TABLE automations ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view workspace automations"
@@ -82,17 +127,8 @@ ON automations FOR DELETE
 TO authenticated
 USING (workspace_id IN (SELECT public.get_user_workspace_ids()));
 
--- 5. SECURE `time_logs` TABLE
+-- 7. SECURE `time_logs` TABLE
 ALTER TABLE time_logs ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "View time logs" ON time_logs;
-DROP POLICY IF EXISTS "Insert time logs" ON time_logs;
-DROP POLICY IF EXISTS "Update time logs" ON time_logs;
-DROP POLICY IF EXISTS "Delete time logs" ON time_logs;
-DROP POLICY IF EXISTS "View time logs in user workspaces" ON time_logs;
-DROP POLICY IF EXISTS "Insert time logs for user tasks" ON time_logs;
-DROP POLICY IF EXISTS "Update own time logs" ON time_logs;
-DROP POLICY IF EXISTS "Delete own time logs" ON time_logs;
 
 CREATE POLICY "View time logs in user workspaces"
 ON time_logs FOR SELECT
@@ -123,14 +159,8 @@ ON time_logs FOR DELETE
 TO authenticated
 USING (auth.uid() = user_id);
 
--- 6. SECURE `profiles` TABLE
+-- 8. SECURE `profiles` TABLE (Prevents anon leak & enables colleague name joins)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
-DROP POLICY IF EXISTS "Profiles are viewable by authenticated users" ON profiles;
-DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
-DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
-DROP POLICY IF EXISTS "Colleagues can view basic profiles" ON profiles;
 
 CREATE POLICY "Users can view own profile"
 ON profiles FOR SELECT

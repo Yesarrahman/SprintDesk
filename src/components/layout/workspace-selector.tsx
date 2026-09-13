@@ -69,9 +69,9 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
     await setActiveWorkspaceCookie(workspace.id)
     toast.success(`Switched to ${workspace.name}`)
     
-    // Always navigate to dashboard — it will render the appropriate 
-    // Personal or Team dashboard based on the active workspace
+    // Navigate to dashboard and force a server re-render for the new active workspace
     router.push('/dashboard')
+    router.refresh()
   }
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
