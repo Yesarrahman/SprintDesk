@@ -61,7 +61,7 @@ export async function createWorkspace(name: string) {
 
   const adminClient = await createAdminClient()
 
-  // 0. Check Free tier limits (max 2 workspaces)
+  // 0. Check Tier limits (Free: max 2, Pro: max 5, Agency/Enterprise: unlimited)
   const { data: profile } = await adminClient
     .from('profiles')
     .select('subscription_tier')
@@ -70,15 +70,22 @@ export async function createWorkspace(name: string) {
 
   const userTier = profile?.subscription_tier || 'free'
 
-  if (userTier === 'free') {
+  if (userTier === 'free' || userTier === 'pro') {
+    const maxAllowed = userTier === 'free' ? 2 : 5
     const { count: ownedCount } = await adminClient
       .from('workspaces')
       .select('id', { count: 'exact', head: true })
       .eq('owner_id', user.id)
 
-    if ((ownedCount || 0) >= 2) {
-      return {
-        error: 'You have reached the 2-workspace limit on the Free tier. Please upgrade to SprintDesk Pro for unlimited workspaces.',
+    if ((ownedCount || 0) >= maxAllowed) {
+      if (userTier === 'free') {
+        return {
+          error: 'You have reached the 2-workspace limit on the Free tier. Please upgrade to SprintDesk Pro to create up to 5 workspaces.',
+        }
+      } else {
+        return {
+          error: 'You have reached the 5-workspace limit on SprintDesk Pro. Please upgrade to SprintDesk Agency for unlimited workspaces.',
+        }
       }
     }
   }

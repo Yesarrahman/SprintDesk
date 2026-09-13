@@ -41,24 +41,35 @@ export async function inviteMember(email: string, role: WorkspaceRole) {
 
   const workspaceId = memberData.workspace_id
 
-  // Enforce member limits (max 3 members on Free tier)
+  // Enforce member limits: Free: max 3, Pro: max 10, Agency/Enterprise: unlimited
   const { data: ws } = await adminClient
     .from('workspaces')
     .select('tier, stripe_subscription_id')
     .eq('id', workspaceId)
     .single()
 
-  const isPaidWorkspace = (ws?.tier === 'pro' || ws?.tier === 'agency' || ws?.tier === 'enterprise') && !!ws?.stripe_subscription_id
+  const isAgencyOrEnterprise = (ws?.tier === 'agency' || ws?.tier === 'enterprise') && !!ws?.stripe_subscription_id
+  const isPro = ws?.tier === 'pro' && !!ws?.stripe_subscription_id
 
-  if (!isPaidWorkspace) {
+  if (!isAgencyOrEnterprise) {
     const { count: currentMemberCount } = await adminClient
       .from('workspace_members')
       .select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
 
-    if ((currentMemberCount || 0) >= 3) {
-      return {
-        error: 'Free workspaces are limited to 3 team members. Upgrade to SprintDesk Pro for unlimited team members.',
+    const memberCount = currentMemberCount || 0
+
+    if (isPro) {
+      if (memberCount >= 10) {
+        return {
+          error: 'SprintDesk Pro workspaces are limited to 10 team members. Upgrade to SprintDesk Agency for unlimited members.',
+        }
+      }
+    } else {
+      if (memberCount >= 3) {
+        return {
+          error: 'Free workspaces are limited to 3 team members. Upgrade to SprintDesk Pro to invite up to 10 members.',
+        }
       }
     }
   }

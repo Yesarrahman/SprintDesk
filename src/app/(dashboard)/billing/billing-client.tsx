@@ -30,8 +30,7 @@ const PLANS = [
     name: 'Free',
     icon: null,
     monthlyPrice: 0,
-    yearlyPrice: 0,
-    yearlyTotal: 0,
+    yearlyMonthlyPrice: 0,
     description: 'For individuals and small teams getting started.',
     color: 'slate',
     features: [
@@ -49,13 +48,13 @@ const PLANS = [
     name: 'SprintDesk Pro',
     icon: Sparkles,
     monthlyPrice: 15,
-    yearlyPrice: 160,
-    yearlySaving: '$20',
+    yearlyMonthlyPrice: 13.50,
     description: 'For growing teams needing reporting and analytics.',
     color: 'indigo',
     features: [
       'Everything in Free',
-      'Unlimited workspace members',
+      'Create up to 5 workspaces',
+      'Invite up to 10 members per workspace',
       'Team & Individual PDF Reports',
       'Custom date range reporting',
       'Submit-to-Manager workflow',
@@ -69,12 +68,13 @@ const PLANS = [
     name: 'SprintDesk Agency',
     icon: Building2,
     monthlyPrice: 29,
-    yearlyPrice: 195,
-    yearlySaving: '$153',
+    yearlyMonthlyPrice: 26.10,
     description: 'For agencies and power teams needing automation.',
     color: 'purple',
     features: [
       'Everything in Pro',
+      'Unlimited workspaces',
+      'Unlimited workspace members',
       'Automations engine',
       'Advanced time tracking',
       'Client portals (Coming Soon)',
@@ -233,7 +233,13 @@ export function BillingClient({ billingInfo }: BillingClientProps) {
                 )}>
                   {sub?.interval ? `${sub.interval} Plan` : 'Active Plan'}
                 </Badge>
-                <span className="text-xs text-slate-400">Workspaces: <strong className="text-slate-700 dark:text-slate-200">Unlimited ({billingInfo?.ownedWorkspacesCount || 1} created)</strong></span>
+                <span className="text-xs text-slate-400">
+                  Workspaces: <strong className="text-slate-700 dark:text-slate-200">
+                    {tier === 'pro'
+                      ? `${billingInfo?.ownedWorkspacesCount || 1} / 5 Used`
+                      : `Unlimited (${billingInfo?.ownedWorkspacesCount || 1} created)`}
+                  </strong>
+                </span>
               </div>
 
               <div className="flex items-center gap-3">
@@ -330,7 +336,7 @@ export function BillingClient({ billingInfo }: BillingClientProps) {
           >
             Yearly
             <span className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-              SAVE
+              10% OFF
             </span>
           </button>
         </div>
@@ -405,15 +411,17 @@ export function BillingClient({ billingInfo }: BillingClientProps) {
                     </div>
                   ) : (
                     <div>
-                      <span className="text-4xl font-extrabold text-slate-900 dark:text-white">
-                        ${plan.yearlyPrice}
-                      </span>
-                      <span className="text-sm text-slate-500 ml-1">/year</span>
-                      {'yearlySaving' in plan && (
-                        <div className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
-                          Save {plan.yearlySaving} vs monthly
-                        </div>
-                      )}
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="line-through text-slate-400 text-xl font-bold">
+                          ${plan.monthlyPrice}
+                        </span>
+                        <span className="text-4xl font-extrabold text-slate-900 dark:text-white">
+                          ${plan.yearlyMonthlyPrice.toFixed(2)}
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                          / month, billed annually
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -479,7 +487,7 @@ export function BillingClient({ billingInfo }: BillingClientProps) {
                     ) : (
                       <ArrowRight className="h-3.5 w-3.5" />
                     )}
-                    {plan.cta} ({billing === 'monthly' ? `$${plan.monthlyPrice}/mo` : `$${plan.yearlyPrice}/yr`})
+                    {plan.cta} ({billing === 'monthly' ? `$${plan.monthlyPrice}/mo` : `$${plan.yearlyMonthlyPrice.toFixed(2)}/mo`})
                   </Button>
                 )}
               </CardFooter>
