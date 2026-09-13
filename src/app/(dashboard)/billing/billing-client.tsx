@@ -38,7 +38,8 @@ const PLANS = [
     description: 'For individuals and small teams getting started.',
     color: 'slate',
     features: [
-      'Create up to 2 workspaces',
+      'Personal Space included',
+      'Create up to 2 team workspaces',
       'Invite up to 3 members per workspace',
       'Task management & Kanban board',
       'Calendar & Capture Inbox',
@@ -57,7 +58,7 @@ const PLANS = [
     color: 'indigo',
     features: [
       'Everything in Free',
-      'Create up to 5 workspaces',
+      'Create up to 5 team workspaces',
       'Invite up to 10 members per workspace',
       'Team & Individual PDF Reports',
       'Custom date range reporting',
@@ -77,7 +78,7 @@ const PLANS = [
     color: 'purple',
     features: [
       'Everything in Pro',
-      'Unlimited workspaces',
+      'Unlimited team workspaces',
       'Unlimited workspace members',
       'Automations engine',
       'Advanced time tracking',
@@ -175,7 +176,7 @@ export function BillingClient({ billingInfo }: BillingClientProps) {
                 <Badge variant="outline" className="text-xs font-semibold px-2.5 py-0.5 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300">
                   Free Tier
                 </Badge>
-                <span className="text-xs text-slate-400">Workspaces: <strong className="text-slate-700 dark:text-slate-200">{billingInfo?.ownedWorkspacesCount || 1} / 2 Used</strong></span>
+                <span className="text-xs text-slate-400">Team Workspaces: <strong className="text-slate-700 dark:text-slate-200">{billingInfo?.ownedWorkspacesCount ?? 0} / 2 Used</strong></span>
               </div>
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
                 You are currently on the Free tier
@@ -188,7 +189,7 @@ export function BillingClient({ billingInfo }: BillingClientProps) {
               <div className="pt-1 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-600 dark:text-slate-300">
                 <div className="flex items-center gap-1.5">
                   <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                  <span>Create up to <strong>2 workspaces</strong></span>
+                  <span>Create up to <strong>2 team workspaces</strong></span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Check className="h-4 w-4 text-emerald-500 shrink-0" />
@@ -238,10 +239,10 @@ export function BillingClient({ billingInfo }: BillingClientProps) {
                   {sub?.interval ? `${sub.interval} Plan` : 'Active Plan'}
                 </Badge>
                 <span className="text-xs text-slate-400">
-                  Workspaces: <strong className="text-slate-700 dark:text-slate-200">
+                  Team Workspaces: <strong className="text-slate-700 dark:text-slate-200">
                     {tier === 'pro'
-                      ? `${billingInfo?.ownedWorkspacesCount || 1} / 5 Used`
-                      : `Unlimited (${billingInfo?.ownedWorkspacesCount || 1} created)`}
+                      ? `${billingInfo?.ownedWorkspacesCount ?? 0} / 5 Used`
+                      : `Unlimited (${billingInfo?.ownedWorkspacesCount ?? 0} created)`}
                   </strong>
                 </span>
               </div>

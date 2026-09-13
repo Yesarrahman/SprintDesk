@@ -249,11 +249,12 @@ export async function getWorkspaceBillingInfo(): Promise<BillingInfo> {
     }
   }
 
-  // 3. Count workspaces owned by this user (to show usage: e.g. 2 / 2)
+  // 3. Count team workspaces owned by this user (excluding default Personal Space)
   const { count: ownedWorkspacesCount } = await adminClient
     .from('workspaces')
     .select('id', { count: 'exact', head: true })
     .eq('owner_id', user.id)
+    .neq('name', 'My Workspace')
 
   // 4. Determine role & ownership
   const isOwner = ws.owner_id === user.id
@@ -346,7 +347,7 @@ export async function getWorkspaceBillingInfo(): Promise<BillingInfo> {
     userRole,
     tier: effectiveTier,
     hasStripeCustomer: !!customerId,
-    ownedWorkspacesCount: ownedWorkspacesCount || 1,
+    ownedWorkspacesCount: ownedWorkspacesCount ?? 0,
     subscription: subscriptionInfo,
     invoices,
   }

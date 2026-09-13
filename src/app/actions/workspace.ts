@@ -72,19 +72,21 @@ export async function createWorkspace(name: string) {
 
   if (userTier === 'free' || userTier === 'pro') {
     const maxAllowed = userTier === 'free' ? 2 : 5
+    // Exclude Personal Space ('My Workspace') so users get their full team workspace quota
     const { count: ownedCount } = await adminClient
       .from('workspaces')
       .select('id', { count: 'exact', head: true })
       .eq('owner_id', user.id)
+      .neq('name', 'My Workspace')
 
     if ((ownedCount || 0) >= maxAllowed) {
       if (userTier === 'free') {
         return {
-          error: 'You have reached the 2-workspace limit on the Free tier. Please upgrade to SprintDesk Pro to create up to 5 workspaces.',
+          error: 'You have reached the 2 team-workspace limit on the Free tier. Please upgrade to SprintDesk Pro to create up to 5 team workspaces.',
         }
       } else {
         return {
-          error: 'You have reached the 5-workspace limit on SprintDesk Pro. Please upgrade to SprintDesk Agency for unlimited workspaces.',
+          error: 'You have reached the 5 team-workspace limit on SprintDesk Pro. Please upgrade to SprintDesk Agency for unlimited workspaces.',
         }
       }
     }
