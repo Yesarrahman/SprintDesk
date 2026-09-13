@@ -134,6 +134,17 @@ export async function createCustomerPortalSession() {
   redirect(portalSession.url)
 }
 
+export type InvoiceItem = {
+  id: string
+  number: string
+  amount: number
+  currency: string
+  status: string
+  created: string
+  pdfUrl: string | null
+  hostedUrl: string | null
+}
+
 export type BillingInfo = {
   workspaceId: string
   workspaceName: string
@@ -149,6 +160,7 @@ export type BillingInfo = {
     interval: 'monthly' | 'yearly'
     priceId: string
   } | null
+  invoices?: InvoiceItem[]
 } | null
 
 export async function getWorkspaceBillingInfo(): Promise<BillingInfo> {
@@ -303,14 +315,39 @@ export async function getWorkspaceBillingInfo(): Promise<BillingInfo> {
     }
   }
 
+  // 7. Fetch invoices from Stripe (owner only)
+  let invoices: InvoiceItem[] = []
+  const customerId = ws.stripe_customer_id || profile?.stripe_customer_id
+  if (isOwner && customerId) {
+    try {
+      const stripeInvoices = await stripe.invoices.list({
+        customer: customerId,
+        limit: 24,
+      })
+      invoices = stripeInvoices.data.map((inv) => ({
+        id: inv.id,
+        number: inv.number || inv.id,
+        amount: (inv.amount_paid ?? inv.total ?? 0) / 100,
+        currency: (inv.currency || 'usd').toUpperCase(),
+        status: inv.status || 'paid',
+        created: inv.created ? new Date(inv.created * 1000).toISOString() : new Date().toISOString(),
+        pdfUrl: inv.invoice_pdf || null,
+        hostedUrl: inv.hosted_invoice_url || null,
+      }))
+    } catch (err) {
+      console.error('Failed to fetch invoices from Stripe:', err)
+    }
+  }
+
   return {
     workspaceId: ws.id,
     workspaceName: ws.name,
     isOwner,
     userRole,
     tier: effectiveTier,
-    hasStripeCustomer: !!(ws.stripe_customer_id || profile?.stripe_customer_id),
+    hasStripeCustomer: !!customerId,
     ownedWorkspacesCount: ownedWorkspacesCount || 1,
     subscription: subscriptionInfo,
+    invoices,
   }
 }

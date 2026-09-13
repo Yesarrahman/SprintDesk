@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from 'react'
 import { createCheckoutSession, createCustomerPortalSession, type BillingInfo } from './actions'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import {
@@ -17,6 +17,10 @@ import {
   ArrowRight,
   AlertCircle,
   CheckCircle2,
+  Download,
+  ExternalLink,
+  FileText,
+  Receipt,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -495,6 +499,134 @@ export function BillingClient({ billingInfo }: BillingClientProps) {
           )
         })}
       </div>
+
+      {/* Invoices & Billing History (Owner only) */}
+      {billingInfo?.isOwner && (
+        <Card className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl shadow-sm overflow-hidden">
+          <CardHeader className="border-b border-slate-100 dark:border-slate-800/60 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <Receipt className="h-4 w-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
+                    Invoices &amp; Billing History
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500 dark:text-slate-400">
+                    View and download official tax invoices and receipts for your subscription.
+                  </CardDescription>
+                </div>
+              </div>
+
+              {billingInfo.hasStripeCustomer && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleManageBilling}
+                  disabled={isPending}
+                  className="text-xs h-8 gap-1.5 shrink-0"
+                >
+                  <CreditCard className="h-3.5 w-3.5" />
+                  Stripe Customer Portal
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            {billingInfo.invoices && billingInfo.invoices.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50/50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800/60">
+                    <tr>
+                      <th className="py-3 px-5 font-semibold">Date</th>
+                      <th className="py-3 px-5 font-semibold">Invoice Number</th>
+                      <th className="py-3 px-5 font-semibold">Amount</th>
+                      <th className="py-3 px-5 font-semibold">Status</th>
+                      <th className="py-3 px-5 font-semibold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                    {billingInfo.invoices.map((invoice) => (
+                      <tr key={invoice.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="py-3.5 px-5 text-slate-700 dark:text-slate-200 font-medium">
+                          {new Date(invoice.created).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </td>
+                        <td className="py-3.5 px-5">
+                          <span className="font-mono text-[11px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                            {invoice.number}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-5 font-semibold text-slate-900 dark:text-white">
+                          ${invoice.amount.toFixed(2)} {invoice.currency}
+                        </td>
+                        <td className="py-3.5 px-5">
+                          <Badge
+                            className={cn(
+                              'text-[10px] font-semibold px-2 py-0.5 capitalize',
+                              invoice.status === 'paid'
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/50'
+                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/50'
+                            )}
+                          >
+                            {invoice.status}
+                          </Badge>
+                        </td>
+                        <td className="py-3.5 px-5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {invoice.pdfUrl && (
+                              <a
+                                href={invoice.pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={cn(
+                                  buttonVariants({ variant: 'outline', size: 'sm' }),
+                                  'h-7 text-xs px-2.5 gap-1 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 no-underline inline-flex items-center'
+                                )}
+                              >
+                                <Download className="h-3 w-3" />
+                                Download PDF
+                              </a>
+                            )}
+                            {invoice.hostedUrl && (
+                              <a
+                                href={invoice.hostedUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={cn(
+                                  buttonVariants({ variant: 'ghost', size: 'sm' }),
+                                  'h-7 text-xs px-2 gap-1 text-slate-500 hover:text-slate-900 dark:hover:text-white no-underline inline-flex items-center'
+                                )}
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                View Receipt
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-10 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
+                <FileText className="h-7 w-7 text-slate-300 dark:text-slate-600" />
+                <p>No invoices available yet.</p>
+                <p className="text-[11px] text-slate-400 max-w-sm">
+                  Invoices and receipts will appear here automatically as subscription payments are processed.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Footer Note */}
       <p className="text-center text-xs text-slate-400 dark:text-slate-500">
