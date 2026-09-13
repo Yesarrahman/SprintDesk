@@ -172,11 +172,70 @@ export async function getWorkspaceBillingInfo(): Promise<BillingInfo> {
   if (!ws) return null
 
   // 2. Fetch user profile
-  const { data: profile } = await adminClient
+  let { data: profile } = await adminClient
     .from('profiles')
     .select('subscription_tier, stripe_customer_id, stripe_subscription_id')
     .eq('id', user.id)
     .single()
+
+  // 2b. Self-Healing Reconciliation: If owner has no subscription recorded in DB, check Stripe directly
+  if (ws.owner_id === user.id && (!profile?.stripe_subscription_id || !ws.stripe_subscription_id)) {
+    try {
+      let customerId = profile?.stripe_customer_id || ws.stripe_customer_id
+      if (!customerId && user.email) {
+        const customers = await stripe.customers.list({ email: user.email, limit: 1 })
+        if (customers.data.length > 0) {
+          customerId = customers.data[0].id
+        }
+      }
+
+      if (customerId) {
+        const subs = await stripe.subscriptions.list({
+          customer: customerId,
+          status: 'active',
+          limit: 1,
+        })
+
+        if (subs.data.length > 0) {
+          const activeSub = subs.data[0]
+          const priceId = activeSub.items?.data?.[0]?.price?.id || ''
+          const matchedTier =
+            priceId === PRICE_IDS.agency.monthly || priceId === PRICE_IDS.agency.yearly
+              ? 'agency'
+              : 'pro'
+
+          await adminClient
+            .from('profiles')
+            .update({
+              subscription_tier: matchedTier,
+              stripe_customer_id: customerId,
+              stripe_subscription_id: activeSub.id,
+            })
+            .eq('id', user.id)
+
+          await adminClient
+            .from('workspaces')
+            .update({
+              tier: matchedTier,
+              stripe_customer_id: customerId,
+              stripe_subscription_id: activeSub.id,
+            })
+            .eq('owner_id', user.id)
+
+          profile = {
+            subscription_tier: matchedTier,
+            stripe_customer_id: customerId,
+            stripe_subscription_id: activeSub.id,
+          }
+          ws.tier = matchedTier
+          ws.stripe_customer_id = customerId
+          ws.stripe_subscription_id = activeSub.id
+        }
+      }
+    } catch (reconcileErr) {
+      console.error('Self-healing Stripe reconciliation error:', reconcileErr)
+    }
+  }
 
   // 3. Count workspaces owned by this user (to show usage: e.g. 2 / 2)
   const { count: ownedWorkspacesCount } = await adminClient

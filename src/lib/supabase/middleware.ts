@@ -42,9 +42,13 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/reset-password') ||
     request.nextUrl.pathname.startsWith('/auth/callback')
 
+  const isPublicApiRoute =
+    request.nextUrl.pathname.startsWith('/api/webhooks')
+
   if (
     !user &&
     !isAuthRoute &&
+    !isPublicApiRoute &&
     request.nextUrl.pathname !== '/'
   ) {
     // no user, potentially respond by redirecting the user to the login page
