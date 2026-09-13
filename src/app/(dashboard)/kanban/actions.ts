@@ -32,11 +32,38 @@ async function executeAutomations(workspaceId: string, taskId: string, triggerTy
 export async function fetchTasks() {
   try {
     const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Unauthorized' }
 
     const cookieStore = await cookies()
     const activeWorkspaceId = cookieStore.get('activeWorkspaceId')?.value
+    if (!activeWorkspaceId) return { tasks: [] }
 
-    let query = supabase
+    const adminClient = await createAdminClient()
+
+    // Verify user is member or owner of active workspace
+    const { data: ws } = await adminClient
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', activeWorkspaceId)
+      .single()
+
+    let isAuthorized = ws?.owner_id === user.id
+    if (!isAuthorized) {
+      const { data: member } = await adminClient
+        .from('workspace_members')
+        .select('id')
+        .eq('workspace_id', activeWorkspaceId)
+        .eq('user_id', user.id)
+        .single()
+      if (member) isAuthorized = true
+    }
+
+    if (!isAuthorized) {
+      return { tasks: [] }
+    }
+
+    const { data, error } = await adminClient
       .from('tasks')
       .select(`
         *,
@@ -46,13 +73,8 @@ export async function fetchTasks() {
         comments:task_comments(count),
         subtasks(id, completed)
       `)
+      .eq('workspace_id', activeWorkspaceId)
       .order('created_at', { ascending: false })
-
-    if (activeWorkspaceId) {
-      query = query.eq('workspace_id', activeWorkspaceId)
-    }
-
-    const { data, error } = await query
 
     if (error) {
       console.error('Error fetching tasks:', error)

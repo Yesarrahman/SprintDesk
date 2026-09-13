@@ -22,34 +22,56 @@ export default async function TasksPage() {
   if (!user) redirect('/login')
 
   let isPersonal = false
+  let isAuthorized = false
+  const adminClient = await createAdminClient()
+
   if (user && activeWorkspaceId) {
-    const adminClient = await createAdminClient()
     const { data: ws } = await adminClient
       .from('workspaces')
       .select('name, owner_id')
       .eq('id', activeWorkspaceId)
       .single()
       
-    if (ws && ws.name === 'My Workspace' && ws.owner_id === user.id) {
-      isPersonal = true
+    if (ws) {
+      if (ws.name === 'My Workspace' && ws.owner_id === user.id) {
+        isPersonal = true
+      }
+      if (ws.owner_id === user.id) {
+        isAuthorized = true
+      } else {
+        const { data: member } = await adminClient
+          .from('workspace_members')
+          .select('id')
+          .eq('workspace_id', activeWorkspaceId)
+          .eq('user_id', user.id)
+          .single()
+        if (member) isAuthorized = true
+      }
     }
   }
 
-  let query = supabase
-    .from('tasks')
-    .select(`
-      *,
-      profiles:assigned_to (
-        full_name
-      )
-    `)
-    .order('created_at', { ascending: false })
+  let tasks: any[] = []
+  let error: string | null = null
 
-  if (activeWorkspaceId) {
-    query = query.eq('workspace_id', activeWorkspaceId)
+  if (isAuthorized && activeWorkspaceId) {
+    const { data, error: fetchErr } = await adminClient
+      .from('tasks')
+      .select(`
+        *,
+        profiles:assigned_to (
+          full_name
+        )
+      `)
+      .eq('workspace_id', activeWorkspaceId)
+      .order('created_at', { ascending: false })
+
+    if (fetchErr) {
+      console.error('Error fetching tasks on /tasks page:', fetchErr)
+      error = fetchErr.message
+    } else {
+      tasks = data || []
+    }
   }
-
-  const { data: tasks, error } = await query
 
   const getStatusBadge = (status: string) => {
     switch (status) {
