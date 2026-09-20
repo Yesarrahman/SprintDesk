@@ -18,7 +18,15 @@ export async function login(formData: FormData) {
     return { error: error.message }
   }
 
+  const plan = formData.get('plan') as string | null
+  const validPlans = ['pro', 'agency']
+
   revalidatePath('/', 'layout')
+
+  if (plan && validPlans.includes(plan)) {
+    redirect(`/billing?plan=${plan}`)
+  }
+
   redirect('/dashboard')
 }
 

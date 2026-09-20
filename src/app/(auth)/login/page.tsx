@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -29,10 +30,12 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>
 
-export default function LoginPage() {
+function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  
+  const searchParams = useSearchParams()
+  const plan = searchParams.get('plan') ?? ''
+
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -46,6 +49,7 @@ export default function LoginPage() {
     const formData = new FormData()
     formData.append('email', data.email)
     formData.append('password', data.password)
+    if (plan) formData.append('plan', plan)
 
     const result = await login(formData)
     
@@ -141,5 +145,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }

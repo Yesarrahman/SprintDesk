@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useTransition } from 'react'
+import React, { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { createCheckoutSession, createCustomerPortalSession, type BillingInfo } from './actions'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils'
 
 interface BillingClientProps {
   billingInfo: BillingInfo
+  initialPlan?: 'pro' | 'agency'
 }
 
 const PLANS = [
@@ -91,13 +92,27 @@ const PLANS = [
   },
 ]
 
-export function BillingClient({ billingInfo }: BillingClientProps) {
+export function BillingClient({ billingInfo, initialPlan }: BillingClientProps) {
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly')
   const [isPending, startTransition] = useTransition()
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+  const [highlightedPlan, setHighlightedPlan] = useState<string | undefined>(initialPlan)
+  const planRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   const tier = billingInfo?.tier || 'free'
   const sub = billingInfo?.subscription
+
+  // When coming from the marketing site with ?plan=, scroll to the plan card and highlight it
+  useEffect(() => {
+    if (initialPlan && planRefs.current[initialPlan]) {
+      setTimeout(() => {
+        planRefs.current[initialPlan]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 300)
+      // Remove highlight ring after 3s
+      const t = setTimeout(() => setHighlightedPlan(undefined), 3000)
+      return () => clearTimeout(t)
+    }
+  }, [initialPlan])
 
   const handleUpgrade = (planId: 'pro' | 'agency') => {
     setLoadingPlan(planId)
@@ -358,6 +373,7 @@ export function BillingClient({ billingInfo }: BillingClientProps) {
           return (
             <Card
               key={plan.id}
+              ref={(el) => { planRefs.current[plan.id] = el }}
               className={cn(
                 'flex flex-col relative transition-all duration-200 overflow-visible',
                 isCurrent && 'ring-2 ring-offset-2 dark:ring-offset-slate-950',
@@ -365,6 +381,7 @@ export function BillingClient({ billingInfo }: BillingClientProps) {
                 isCurrent && tier === 'pro' && 'ring-indigo-500',
                 isCurrent && tier === 'agency' && 'ring-purple-500',
                 isCurrent && tier === 'free' && 'ring-slate-300',
+                highlightedPlan === plan.id && !isCurrent && 'ring-2 ring-offset-2 dark:ring-offset-slate-950 ring-indigo-400 dark:ring-indigo-500 animate-pulse',
                 'bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-slate-200 dark:border-slate-800'
               )}
             >
