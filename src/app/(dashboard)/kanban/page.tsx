@@ -13,31 +13,45 @@ export default async function KanbanPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const cookieStore = await cookies()
-  const activeWorkspaceId = cookieStore.get('activeWorkspaceId')?.value
+  let activeWorkspaceId = cookieStore.get('activeWorkspaceId')?.value
 
   let role = 'owner'
   let isPersonal = false
   let isPaid = false
   let workspaceName = 'Workspace'
   
-  if (user && activeWorkspaceId) {
-    const { data: member } = await supabase
-      .from('workspace_members')
-      .select('role')
-      .eq('workspace_id', activeWorkspaceId)
-      .eq('user_id', user.id)
-      .single()
-      
-    if (member) role = member.role
-    
-    // Check if it's the personal workspace (named "My Workspace" and owned by user)
-    // We use adminClient because of the RLS recursion bug on the workspaces table
+  if (user) {
     const adminClient = await createAdminClient()
-    const { data: ws } = await adminClient
-      .from('workspaces')
-      .select('name, owner_id, tier, stripe_subscription_id')
-      .eq('id', activeWorkspaceId)
-      .single()
+
+    if (!activeWorkspaceId) {
+      // Default to personal workspace ('My Workspace' owned by user)
+      const { data: ownedWs } = await adminClient
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', user.id)
+        .eq('name', 'My Workspace')
+        .limit(1)
+
+      if (ownedWs && ownedWs.length > 0) {
+        activeWorkspaceId = ownedWs[0].id
+      }
+    }
+
+    if (activeWorkspaceId) {
+      const { data: member } = await supabase
+        .from('workspace_members')
+        .select('role')
+        .eq('workspace_id', activeWorkspaceId)
+        .eq('user_id', user.id)
+        .single()
+        
+      if (member) role = member.role
+      
+      const { data: ws } = await adminClient
+        .from('workspaces')
+        .select('name, owner_id, tier, stripe_subscription_id')
+        .eq('id', activeWorkspaceId)
+        .single()
 
     const { data: profile } = await adminClient
       .from('profiles')
@@ -59,6 +73,7 @@ export default async function KanbanPage() {
       }
     }
   }
+}
 
   const { columns } = activeWorkspaceId ? await fetchKanbanColumns(activeWorkspaceId, isPersonal) : { columns: [] }
   const { members } = !isPersonal ? await fetchTeamMembers() : { members: [] }

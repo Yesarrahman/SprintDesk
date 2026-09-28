@@ -22,7 +22,7 @@ export default async function DashboardPage() {
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
 
   const cookieStore = await cookies()
-  const activeWorkspaceId = cookieStore.get('activeWorkspaceId')?.value
+  let activeWorkspaceId = cookieStore.get('activeWorkspaceId')?.value
   let isPersonal = false
   let workspaceName = 'Workspace'
   
@@ -34,18 +34,35 @@ export default async function DashboardPage() {
   let upcomingTeamTasks: any[] = []
   let recentActivity: any[] = []
   
-  if (user && activeWorkspaceId) {
+  if (user) {
     const adminClient = await createAdminClient()
-    const { data: ws } = await adminClient
-      .from('workspaces')
-      .select('name, owner_id')
-      .eq('id', activeWorkspaceId)
-      .single()
-      
-    if (ws) {
-      workspaceName = ws.name
-      if (ws.name === 'My Workspace' && ws.owner_id === user.id) {
-        isPersonal = true
+
+    if (!activeWorkspaceId) {
+      // Default to personal workspace ('My Workspace' owned by user)
+      const { data: ownedWs } = await adminClient
+        .from('workspaces')
+        .select('id')
+        .eq('owner_id', user.id)
+        .eq('name', 'My Workspace')
+        .limit(1)
+
+      if (ownedWs && ownedWs.length > 0) {
+        activeWorkspaceId = ownedWs[0].id
+      }
+    }
+
+    if (activeWorkspaceId) {
+      const { data: ws } = await adminClient
+        .from('workspaces')
+        .select('name, owner_id')
+        .eq('id', activeWorkspaceId)
+        .single()
+        
+      if (ws) {
+        workspaceName = ws.name
+        if (ws.name === 'My Workspace' && ws.owner_id === user.id) {
+          isPersonal = true
+        }
       }
     }
     

@@ -50,15 +50,6 @@ export async function ensurePersonalWorkspace(userId: string, email?: string, fu
       return null
     }
 
-    // Assign owner membership
-    await adminClient
-      .from('workspace_members')
-      .upsert({
-        workspace_id: personalWsId,
-        user_id: userId,
-        role: 'owner',
-      }, { onConflict: 'workspace_id,user_id' })
-
     // Add default kanban columns for Personal Space
     const defaultCols = [
       { workspace_id: personalWsId, user_id: userId, title: 'Backlog', order_index: 0 },
@@ -66,16 +57,27 @@ export async function ensurePersonalWorkspace(userId: string, email?: string, fu
       { workspace_id: personalWsId, user_id: userId, title: 'In Progress', order_index: 2 },
       { workspace_id: personalWsId, user_id: userId, title: 'Completed', order_index: 3 },
     ]
-    await adminClient.from('kanban_columns').insert(defaultCols)
-  } else {
-    // Ensure membership exists for existing personal workspace
-    await adminClient
-      .from('workspace_members')
-      .upsert({
-        workspace_id: personalWsId,
-        user_id: userId,
-        role: 'owner',
-      }, { onConflict: 'workspace_id,user_id' })
+    try {
+      await adminClient.from('kanban_columns').insert(defaultCols)
+    } catch (e) {
+      console.error('Failed to create default kanban columns:', e)
+    }
+  }
+
+  // Ensure owner membership exists in workspace_members (safe check before insert, NO upsert)
+  const { data: existingMember } = await adminClient
+    .from('workspace_members')
+    .select('id')
+    .eq('workspace_id', personalWsId)
+    .eq('user_id', userId)
+    .limit(1)
+
+  if (!existingMember || existingMember.length === 0) {
+    await adminClient.from('workspace_members').insert({
+      workspace_id: personalWsId,
+      user_id: userId,
+      role: 'owner',
+    })
   }
 
   return personalWsId
@@ -86,7 +88,6 @@ export async function fetchWorkspaces() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
 
-  // Join workspace_members and workspaces using admin client to bypass broken RLS recursion
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return { error: 'Server configuration error' }
   }
@@ -95,7 +96,8 @@ export async function fetchWorkspaces() {
   // Ensure personal workspace exists for this user
   await ensurePersonalWorkspace(user.id, user.email, user.user_metadata?.full_name)
 
-  const { data, error } = await adminClient
+  // 1. Fetch workspaces the user is a member of
+  const { data: memberData, error: memberError } = await adminClient
     .from('workspace_members')
     .select(`
       role,
@@ -103,34 +105,74 @@ export async function fetchWorkspaces() {
         id,
         name,
         tier,
-        created_at
+        created_at,
+        owner_id
       )
     `)
     .eq('user_id', user.id)
 
-  if (error) {
-    console.error('Error fetching workspaces:', error)
-    return { error: 'Failed to fetch workspaces' }
+  if (memberError) {
+    console.error('Error fetching member workspaces:', memberError)
   }
 
-  const workspaces = (data || [])
-    .filter(item => item.workspaces)
-    .map(item => ({
-      // @ts-expect-error: Joined column type not inferred
-      id: item.workspaces.id,
-      // @ts-expect-error: Joined column type not inferred
-      name: item.workspaces.name,
-      // @ts-expect-error: Joined column type not inferred
-      tier: item.workspaces.tier || 'free',
-      // @ts-expect-error: Joined column type not inferred
-      created_at: item.workspaces.created_at,
-      role: item.role
-    }))
-    .sort((a, b) => {
-      if (a.name === 'My Workspace' && a.role === 'owner') return -1
-      if (b.name === 'My Workspace' && b.role === 'owner') return 1
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  // 2. Fetch workspaces the user owns directly
+  const { data: ownedData, error: ownedError } = await adminClient
+    .from('workspaces')
+    .select('id, name, tier, created_at, owner_id')
+    .eq('owner_id', user.id)
+
+  if (ownedError) {
+    console.error('Error fetching owned workspaces:', ownedError)
+  }
+
+  const workspacesMap = new Map<string, { id: string; name: string; tier: string; created_at: string; role: string }>()
+
+  // Add all owned workspaces
+  for (const w of (ownedData || [])) {
+    workspacesMap.set(w.id, {
+      id: w.id,
+      name: w.name,
+      tier: w.tier || 'free',
+      created_at: w.created_at,
+      role: 'owner',
     })
+
+    // Self-heal missing workspace_members row for owned workspace
+    const hasMemberRecord = memberData?.some(m => (m.workspaces as any)?.id === w.id)
+    if (!hasMemberRecord) {
+      try {
+        await adminClient.from('workspace_members').insert({
+          workspace_id: w.id,
+          user_id: user.id,
+          role: 'owner',
+        })
+      } catch (e) {
+        // Ignore if already present
+      }
+    }
+  }
+
+  // Add all member workspaces
+  for (const m of (memberData || [])) {
+    const ws = m.workspaces as any
+    if (ws && !workspacesMap.has(ws.id)) {
+      workspacesMap.set(ws.id, {
+        id: ws.id,
+        name: ws.name,
+        tier: ws.tier || 'free',
+        created_at: ws.created_at,
+        role: m.role || (ws.owner_id === user.id ? 'owner' : 'member'),
+      })
+    }
+  }
+
+  const workspaces = Array.from(workspacesMap.values()).sort((a, b) => {
+    const aIsPersonal = a.name === 'My Workspace' && a.role === 'owner'
+    const bIsPersonal = b.name === 'My Workspace' && b.role === 'owner'
+    if (aIsPersonal) return -1
+    if (bIsPersonal) return 1
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  })
 
   return { workspaces }
 }
