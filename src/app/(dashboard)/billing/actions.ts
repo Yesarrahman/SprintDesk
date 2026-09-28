@@ -2,9 +2,8 @@
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Stripe from 'stripe'
-import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
+import { headers, cookies } from 'next/headers'
+import { ensurePersonalWorkspace } from '@/app/actions/workspace'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-07-29.dahlia' as any,
@@ -24,40 +23,45 @@ const PRICE_IDS = {
 export async function createCheckoutSession(
   tier: 'pro' | 'agency',
   billing: 'monthly' | 'yearly'
-) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
-
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('activeWorkspaceId')?.value
-  if (!workspaceId) throw new Error('No active workspace selected')
-
-  const priceId = PRICE_IDS[tier][billing]
-  if (!priceId) throw new Error('Invalid plan selection')
-
-  const headersList = await headers()
-  const origin = headersList.get('origin') || 'http://localhost:3000'
-
-  const adminClient = await createAdminClient()
-
-  // Get user profile & workspace to attach customer info
-  const { data: profile } = await adminClient
-    .from('profiles')
-    .select('stripe_customer_id')
-    .eq('id', user.id)
-    .single()
-
-  const { data: ws } = await adminClient
-    .from('workspaces')
-    .select('stripe_customer_id')
-    .eq('id', workspaceId)
-    .single()
-
-  const existingCustomerId = profile?.stripe_customer_id || ws?.stripe_customer_id
-
-  let checkoutUrl = ''
+): Promise<{ error?: string; url?: string }> {
   try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated. Please log in.' }
+
+    const priceId = PRICE_IDS[tier]?.[billing]
+    if (!priceId) return { error: 'Invalid plan selection or Stripe price ID not configured.' }
+
+    const headersList = await headers()
+    const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000'
+    const proto = headersList.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https')
+    const origin = `${proto}://${host}`
+
+    const adminClient = await createAdminClient()
+
+    // Find user's owned personal workspace or ensure one exists
+    let userWsId: string | null = null
+    const { data: ownedWs } = await adminClient
+      .from('workspaces')
+      .select('id')
+      .eq('owner_id', user.id)
+      .limit(1)
+
+    if (ownedWs && ownedWs.length > 0) {
+      userWsId = ownedWs[0].id
+    } else {
+      userWsId = await ensurePersonalWorkspace(user.id, user.email, user.user_metadata?.full_name)
+    }
+
+    // Get user profile to attach customer info
+    const { data: profile } = await adminClient
+      .from('profiles')
+      .select('stripe_customer_id')
+      .eq('id', user.id)
+      .single()
+
+    const existingCustomerId = profile?.stripe_customer_id
+
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
       billing_address_collection: 'auto',
@@ -67,7 +71,7 @@ export async function createCheckoutSession(
       cancel_url: `${origin}/billing?canceled=true`,
       metadata: {
         userId: user.id,
-        workspaceId,
+        workspaceId: userWsId || '',
         tier,
         billing,
       },
@@ -80,58 +84,59 @@ export async function createCheckoutSession(
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams)
-    if (session.url) checkoutUrl = session.url
+    if (!session.url) {
+      return { error: 'Stripe failed to return checkout session URL' }
+    }
+
+    return { url: session.url }
   } catch (error: any) {
     console.error('Stripe checkout error:', error)
-    throw new Error(error.message || 'Failed to create checkout session')
+    return { error: error.message || 'Failed to create checkout session' }
   }
-
-  if (checkoutUrl) redirect(checkoutUrl)
 }
 
-export async function createCustomerPortalSession() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+export async function createCustomerPortalSession(): Promise<{ error?: string; url?: string }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated. Please log in.' }
 
-  const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('activeWorkspaceId')?.value
-  if (!workspaceId) throw new Error('No active workspace selected')
+    const adminClient = await createAdminClient()
 
-  const adminClient = await createAdminClient()
+    const { data: profile } = await adminClient
+      .from('profiles')
+      .select('stripe_customer_id')
+      .eq('id', user.id)
+      .single()
 
-  const { data: ws } = await adminClient
-    .from('workspaces')
-    .select('id, owner_id, stripe_customer_id')
-    .eq('id', workspaceId)
-    .single()
+    let customerId = profile?.stripe_customer_id
 
-  // STRICT OWNER CHECK: Admins and members CANNOT manage billing or access the owner's Stripe portal!
-  if (!ws || ws.owner_id !== user.id) {
-    throw new Error('Unauthorized: Only the workspace owner can manage billing and subscriptions.')
+    if (!customerId && user.email) {
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 })
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id
+      }
+    }
+
+    if (!customerId) {
+      return { error: 'No active billing subscription found for your account.' }
+    }
+
+    const headersList = await headers()
+    const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000'
+    const proto = headersList.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https')
+    const origin = `${proto}://${host}`
+
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${origin}/billing`,
+    })
+
+    return { url: portalSession.url }
+  } catch (error: any) {
+    console.error('Customer portal error:', error)
+    return { error: error.message || 'Failed to open billing portal' }
   }
-
-  const { data: profile } = await adminClient
-    .from('profiles')
-    .select('stripe_customer_id')
-    .eq('id', user.id)
-    .single()
-
-  const customerId = ws.stripe_customer_id || profile?.stripe_customer_id
-
-  if (!customerId) {
-    throw new Error('No billing account found for this workspace.')
-  }
-
-  const headersList = await headers()
-  const origin = headersList.get('origin') || 'http://localhost:3000'
-
-  const portalSession = await stripe.billingPortal.sessions.create({
-    customer: customerId,
-    return_url: `${origin}/billing`,
-  })
-
-  redirect(portalSession.url)
 }
 
 export type InvoiceItem = {
@@ -151,6 +156,7 @@ export type BillingInfo = {
   isOwner: boolean
   userRole: string
   tier: 'free' | 'pro' | 'agency'
+  workspaceTier?: 'free' | 'pro' | 'agency'
   hasStripeCustomer: boolean
   ownedWorkspacesCount: number
   subscription: {
@@ -169,32 +175,63 @@ export async function getWorkspaceBillingInfo(): Promise<BillingInfo> {
   if (!user) return null
 
   const cookieStore = await cookies()
-  const workspaceId = cookieStore.get('activeWorkspaceId')?.value
-  if (!workspaceId) return null
+  let workspaceId = cookieStore.get('activeWorkspaceId')?.value
 
   const adminClient = await createAdminClient()
 
-  // 1. Fetch workspace info
-  const { data: ws } = await adminClient
-    .from('workspaces')
-    .select('id, name, tier, owner_id, stripe_customer_id, stripe_subscription_id')
-    .eq('id', workspaceId)
-    .single()
-
-  if (!ws) return null
-
-  // 2. Fetch user profile
+  // 1. Fetch user profile
   let { data: profile } = await adminClient
     .from('profiles')
     .select('subscription_tier, stripe_customer_id, stripe_subscription_id')
     .eq('id', user.id)
     .single()
 
-  // 2b. Self-Healing Reconciliation: If owner has no subscription recorded in DB, check Stripe directly
-  if (ws.owner_id === user.id && (!profile?.stripe_subscription_id || !ws.stripe_subscription_id)) {
+  // Ensure personal workspace exists if not already
+  let userWsId: string | null = null
+  const { data: ownedWs } = await adminClient
+    .from('workspaces')
+    .select('id, name, tier, stripe_customer_id, stripe_subscription_id')
+    .eq('owner_id', user.id)
+    .limit(1)
+
+  if (ownedWs && ownedWs.length > 0) {
+    userWsId = ownedWs[0].id
+  } else {
+    userWsId = await ensurePersonalWorkspace(user.id, user.email, user.user_metadata?.full_name)
+  }
+
+  if (!workspaceId) {
+    workspaceId = userWsId || undefined
+  }
+
+  // 2. Fetch active workspace (or fallback to user's owned workspace)
+  let ws: any = null
+  if (workspaceId) {
+    const { data: foundWs } = await adminClient
+      .from('workspaces')
+      .select('id, name, tier, owner_id, stripe_customer_id, stripe_subscription_id')
+      .eq('id', workspaceId)
+      .single()
+    ws = foundWs
+  }
+
+  if (!ws && userWsId) {
+    const { data: personalWs } = await adminClient
+      .from('workspaces')
+      .select('id, name, tier, owner_id, stripe_customer_id, stripe_subscription_id')
+      .eq('id', userWsId)
+      .single()
+    ws = personalWs
+  }
+
+  if (!ws) return null
+
+  // 2b. Self-Healing Reconciliation: Check Stripe directly if profile has no subscription
+  const userHasSub = !!profile?.stripe_subscription_id
+  if (!userHasSub && user.email) {
     try {
       let customerId = profile?.stripe_customer_id || ws.stripe_customer_id
-      if (!customerId && user.email) {
+      if (!customerId) {
         const customers = await stripe.customers.list({ email: user.email, limit: 1 })
         if (customers.data.length > 0) {
           customerId = customers.data[0].id
@@ -239,9 +276,6 @@ export async function getWorkspaceBillingInfo(): Promise<BillingInfo> {
             stripe_customer_id: customerId,
             stripe_subscription_id: activeSub.id,
           }
-          ws.tier = matchedTier
-          ws.stripe_customer_id = customerId
-          ws.stripe_subscription_id = activeSub.id
         }
       }
     } catch (reconcileErr) {
@@ -256,7 +290,7 @@ export async function getWorkspaceBillingInfo(): Promise<BillingInfo> {
     .eq('owner_id', user.id)
     .neq('name', 'My Workspace')
 
-  // 4. Determine role & ownership
+  // 4. Determine role & ownership of the active workspace
   const isOwner = ws.owner_id === user.id
   let userRole = isOwner ? 'owner' : 'member'
 
@@ -264,37 +298,22 @@ export async function getWorkspaceBillingInfo(): Promise<BillingInfo> {
     const { data: mem } = await adminClient
       .from('workspace_members')
       .select('role')
-      .eq('workspace_id', workspaceId)
+      .eq('workspace_id', ws.id)
       .eq('user_id', user.id)
       .single()
 
     if (mem?.role) userRole = mem.role
   }
 
-  // 5. Determine effective tier:
-  // If user is owner of workspace, use the owner's plan (pro/agency/free).
-  // If user is an invited member/admin, workspace has its tier, but the member's account has their own personal tier.
-  let effectiveTier: 'free' | 'pro' | 'agency' = 'free'
+  // 5. Account-Level Tier: Always reflects the USER'S plan
+  const userAccountTier: 'free' | 'pro' | 'agency' = (profile?.subscription_tier as any) || 'free'
+  const workspaceTier: 'free' | 'pro' | 'agency' = (ws.tier as any) || 'free'
 
-  if (isOwner) {
-    const hasStripe = !!(profile?.stripe_subscription_id || ws?.stripe_subscription_id)
-    const ownerPlan = (profile?.subscription_tier as any) || (ws.tier as any) || 'free'
-    if (hasStripe && (ownerPlan === 'agency' || ownerPlan === 'pro')) {
-      effectiveTier = ownerPlan
-    } else {
-      effectiveTier = 'free'
-    }
-  } else {
-    // For invited members, display workspace tier if workspace has verified subscription
-    const hasStripe = !!(ws?.stripe_subscription_id)
-    effectiveTier = hasStripe && (ws.tier === 'pro' || ws.tier === 'agency') ? ws.tier : 'free'
-  }
+  // 6. Subscription details (retrieved for user account if active)
+  let subscriptionInfo: any = null
+  const subId = profile?.stripe_subscription_id || (isOwner ? ws.stripe_subscription_id : null)
 
-  // 6. Subscription details (ONLY retrieved for owner!)
-  let subscriptionInfo: BillingInfo extends { subscription: infer S } ? S : any = null
-  const subId = ws.stripe_subscription_id || profile?.stripe_subscription_id
-
-  if (isOwner && subId) {
+  if (subId) {
     try {
       const subscription: any = await stripe.subscriptions.retrieve(subId)
       const priceId = subscription.items?.data?.[0]?.price?.id
@@ -316,10 +335,10 @@ export async function getWorkspaceBillingInfo(): Promise<BillingInfo> {
     }
   }
 
-  // 7. Fetch invoices from Stripe (owner only)
+  // 7. Fetch invoices from Stripe for this account
   let invoices: InvoiceItem[] = []
-  const customerId = ws.stripe_customer_id || profile?.stripe_customer_id
-  if (isOwner && customerId) {
+  const customerId = profile?.stripe_customer_id || (isOwner ? ws.stripe_customer_id : null)
+  if (customerId) {
     try {
       const stripeInvoices = await stripe.invoices.list({
         customer: customerId,
@@ -345,7 +364,8 @@ export async function getWorkspaceBillingInfo(): Promise<BillingInfo> {
     workspaceName: ws.name,
     isOwner,
     userRole,
-    tier: effectiveTier,
+    tier: userAccountTier,
+    workspaceTier,
     hasStripeCustomer: !!customerId,
     ownedWorkspacesCount: ownedWorkspacesCount ?? 0,
     subscription: subscriptionInfo,

@@ -50,9 +50,10 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
           setActiveWorkspace(found)
           setActiveTier((found as any).tier || 'free')
         } else {
-          setActiveWorkspace(result.workspaces[0])
-          setActiveTier((result.workspaces[0] as any).tier || 'free')
-          setActiveWorkspaceCookie(result.workspaces[0].id)
+          const defaultWs = result.workspaces.find(w => w.name === 'My Workspace' && w.role === 'owner') || result.workspaces[0]
+          setActiveWorkspace(defaultWs)
+          setActiveTier((defaultWs as any).tier || 'free')
+          setActiveWorkspaceCookie(defaultWs.id)
         }
       }
     }
@@ -67,7 +68,7 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
     setActiveWorkspace(workspace)
     setActiveTier(workspace.tier || 'free')
     await setActiveWorkspaceCookie(workspace.id)
-    toast.success(`Switched to ${workspace.name}`)
+    toast.success(`Switched to ${workspace.name === 'My Workspace' ? 'Personal Space' : workspace.name}`)
     
     // Navigate to dashboard and force a server re-render for the new active workspace
     router.push('/dashboard')
@@ -109,8 +110,8 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
     }
   }
 
-  const personalWorkspace = workspaces.find(w => w.name === 'My Workspace' && w.role === 'owner') || workspaces[0]
-  const otherWorkspaces = workspaces.filter(w => w.id !== personalWorkspace?.id)
+  const personalWorkspace = workspaces.find(w => w.name === 'My Workspace' && w.role === 'owner')
+  const teamWorkspaces = workspaces.filter(w => w.id !== personalWorkspace?.id)
 
   return (
     <>
@@ -168,7 +169,7 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
 
           {sidebarOpen && isExpanded && (
             <div className="mt-1 flex flex-col pl-9 space-y-1">
-              {otherWorkspaces.map((ws) => (
+              {teamWorkspaces.map((ws) => (
                 <button
                   key={ws.id}
                   onClick={() => handleSelectWorkspace(ws)}

@@ -4,6 +4,83 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 
+export async function ensurePersonalWorkspace(userId: string, email?: string, fullName?: string) {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null
+  const adminClient = await createAdminClient()
+
+  // 1. Ensure profile exists
+  const { data: profile } = await adminClient
+    .from('profiles')
+    .select('id, full_name, subscription_tier')
+    .eq('id', userId)
+    .single()
+
+  if (!profile) {
+    const displayName = fullName || email?.split('@')[0] || 'User'
+    await adminClient.from('profiles').upsert({
+      id: userId,
+      full_name: displayName,
+      subscription_tier: 'free',
+    }, { onConflict: 'id' })
+  }
+
+  // 2. Check if user already owns 'My Workspace'
+  const { data: existingWs } = await adminClient
+    .from('workspaces')
+    .select('id, name, tier, created_at')
+    .eq('owner_id', userId)
+    .eq('name', 'My Workspace')
+    .limit(1)
+
+  let personalWsId = existingWs && existingWs.length > 0 ? existingWs[0].id : null
+
+  if (!personalWsId) {
+    personalWsId = crypto.randomUUID()
+    const { error: wsError } = await adminClient
+      .from('workspaces')
+      .insert({
+        id: personalWsId,
+        name: 'My Workspace',
+        owner_id: userId,
+        tier: profile?.subscription_tier || 'free',
+      })
+
+    if (wsError) {
+      console.error('Error auto-creating personal workspace:', wsError)
+      return null
+    }
+
+    // Assign owner membership
+    await adminClient
+      .from('workspace_members')
+      .upsert({
+        workspace_id: personalWsId,
+        user_id: userId,
+        role: 'owner',
+      }, { onConflict: 'workspace_id,user_id' })
+
+    // Add default kanban columns for Personal Space
+    const defaultCols = [
+      { workspace_id: personalWsId, user_id: userId, title: 'Backlog', order_index: 0 },
+      { workspace_id: personalWsId, user_id: userId, title: 'To Do', order_index: 1 },
+      { workspace_id: personalWsId, user_id: userId, title: 'In Progress', order_index: 2 },
+      { workspace_id: personalWsId, user_id: userId, title: 'Completed', order_index: 3 },
+    ]
+    await adminClient.from('kanban_columns').insert(defaultCols)
+  } else {
+    // Ensure membership exists for existing personal workspace
+    await adminClient
+      .from('workspace_members')
+      .upsert({
+        workspace_id: personalWsId,
+        user_id: userId,
+        role: 'owner',
+      }, { onConflict: 'workspace_id,user_id' })
+  }
+
+  return personalWsId
+}
+
 export async function fetchWorkspaces() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -14,6 +91,9 @@ export async function fetchWorkspaces() {
     return { error: 'Server configuration error' }
   }
   const adminClient = await createAdminClient()
+
+  // Ensure personal workspace exists for this user
+  await ensurePersonalWorkspace(user.id, user.email, user.user_metadata?.full_name)
 
   const { data, error } = await adminClient
     .from('workspace_members')
@@ -33,17 +113,24 @@ export async function fetchWorkspaces() {
     return { error: 'Failed to fetch workspaces' }
   }
 
-  const workspaces = data.map(item => ({
-    // @ts-expect-error: Joined column type not inferred
-    id: item.workspaces.id,
-    // @ts-expect-error: Joined column type not inferred
-    name: item.workspaces.name,
-    // @ts-expect-error: Joined column type not inferred
-    tier: item.workspaces.tier || 'free',
-    // @ts-expect-error: Joined column type not inferred
-    created_at: item.workspaces.created_at,
-    role: item.role
-  })).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  const workspaces = (data || [])
+    .filter(item => item.workspaces)
+    .map(item => ({
+      // @ts-expect-error: Joined column type not inferred
+      id: item.workspaces.id,
+      // @ts-expect-error: Joined column type not inferred
+      name: item.workspaces.name,
+      // @ts-expect-error: Joined column type not inferred
+      tier: item.workspaces.tier || 'free',
+      // @ts-expect-error: Joined column type not inferred
+      created_at: item.workspaces.created_at,
+      role: item.role
+    }))
+    .sort((a, b) => {
+      if (a.name === 'My Workspace' && a.role === 'owner') return -1
+      if (b.name === 'My Workspace' && b.role === 'owner') return 1
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    })
 
   return { workspaces }
 }

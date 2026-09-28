@@ -118,7 +118,13 @@ export function BillingClient({ billingInfo, initialPlan }: BillingClientProps) 
     setLoadingPlan(planId)
     startTransition(async () => {
       try {
-        await createCheckoutSession(planId, billing)
+        const res = await createCheckoutSession(planId, billing)
+        if (res.error) {
+          toast.error(res.error)
+          setLoadingPlan(null)
+        } else if (res.url) {
+          window.location.href = res.url
+        }
       } catch (err: any) {
         toast.error(err.message || 'Failed to start checkout')
         setLoadingPlan(null)
@@ -130,7 +136,13 @@ export function BillingClient({ billingInfo, initialPlan }: BillingClientProps) 
     setLoadingPlan('portal')
     startTransition(async () => {
       try {
-        await createCustomerPortalSession()
+        const res = await createCustomerPortalSession()
+        if (res.error) {
+          toast.error(res.error)
+          setLoadingPlan(null)
+        } else if (res.url) {
+          window.location.href = res.url
+        }
       } catch (err: any) {
         toast.error(err.message || 'Failed to open billing portal')
         setLoadingPlan(null)
@@ -143,48 +155,42 @@ export function BillingClient({ billingInfo, initialPlan }: BillingClientProps) 
       {/* Header */}
       <div>
         <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
-          Billing & Subscription
+          Billing &amp; Subscription
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Manage your workspace plan for{' '}
-          <span className="font-semibold text-slate-700 dark:text-slate-200">
-            {billingInfo?.workspaceName || 'your workspace'}
-          </span>
-          .
+          Manage your personal account subscription and team workspace quotas.
         </p>
       </div>
 
-      {/* Dedicated Subscription Status Card */}
-      {!billingInfo?.isOwner ? (
-        <Card className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl p-6 shadow-sm overflow-visible">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="text-xs font-semibold px-2.5 py-0.5 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                {billingInfo?.userRole ? `${billingInfo.userRole.toUpperCase()} ACCESS` : 'MEMBER ACCESS'}
-              </Badge>
-              <span className="text-xs text-slate-400">Workspace: <strong className="text-slate-700 dark:text-slate-200">{billingInfo?.workspaceName}</strong></span>
-              <Badge className={cn(
-                'text-[10px] font-bold uppercase tracking-wider',
-                tier === 'pro' ? 'bg-indigo-600 text-white' :
-                tier === 'agency' ? 'bg-purple-600 text-white' :
-                'bg-slate-600 text-white'
-              )}>
-                {tier.toUpperCase()} PLAN
-              </Badge>
-            </div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              Workspace Billing is Managed by the Owner
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
-              You are currently an invited {billingInfo?.userRole || 'member'} in <strong>{billingInfo?.workspaceName}</strong>. You enjoy full access to this workspace, but billing, invoices, payment cards, and subscription changes can only be managed by the workspace owner.
-            </p>
-            <div className="pt-1 flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-              <Sparkles className="h-4 w-4 shrink-0" />
-              <span>To create and upgrade your own workspaces, you can select a plan below for your personal account.</span>
+      {/* Active Team Workspace Informational Card for Invited Members */}
+      {!billingInfo?.isOwner && (
+        <Card className="rounded-2xl border border-indigo-200/60 dark:border-indigo-900/40 bg-indigo-50/40 dark:bg-indigo-950/20 backdrop-blur-xl p-5 shadow-sm overflow-visible">
+          <div className="flex items-start gap-3">
+            <Building2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  Viewing Workspace: <strong>{billingInfo?.workspaceName}</strong>
+                </span>
+                <Badge variant="outline" className="text-[10px] uppercase font-bold px-2 py-0.5 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">
+                  {billingInfo?.userRole ? `${billingInfo.userRole.toUpperCase()} ACCESS` : 'MEMBER ACCESS'}
+                </Badge>
+                {billingInfo?.workspaceTier && (
+                  <Badge className="text-[10px] uppercase font-bold px-2 py-0.5 bg-indigo-600 text-white">
+                    {billingInfo.workspaceTier.toUpperCase()} WORKSPACE
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                You have team access to <strong>{billingInfo?.workspaceName}</strong>. Below is your <strong>Personal Account Plan</strong>, which governs your personal quotas to create your own team workspaces and unlock reports.
+              </p>
             </div>
           </div>
         </Card>
-      ) : tier === 'free' ? (
+      )}
+
+      {/* Dedicated Account Subscription Status Card */}
+      {tier === 'free' ? (
         <Card className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl p-6 shadow-sm overflow-visible">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-3">
@@ -195,10 +201,10 @@ export function BillingClient({ billingInfo, initialPlan }: BillingClientProps) 
                 <span className="text-xs text-slate-400">Team Workspaces: <strong className="text-slate-700 dark:text-slate-200">{billingInfo?.ownedWorkspacesCount ?? 0} / 2 Used</strong></span>
               </div>
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                You are currently on the Free tier
+                Your account is currently on the Free tier
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed">
-                Your account includes standard task tracking and team collaboration. Upgrade to SprintDesk Pro or Agency below to unlock team &amp; individual PDF reports, unlimited team members, and automations.
+                Your account includes personal task management and standard team collaboration. Upgrade to SprintDesk Pro or Agency below to create more team workspaces, unlock PDF reports, and invite more members.
               </p>
 
               {/* Feature Highlights for Free */}
@@ -469,7 +475,7 @@ export function BillingClient({ billingInfo, initialPlan }: BillingClientProps) 
 
               <CardFooter className="pt-4">
                 {isCurrent ? (
-                  tier !== 'free' && billingInfo?.isOwner && billingInfo?.hasStripeCustomer ? (
+                  tier !== 'free' && billingInfo?.hasStripeCustomer ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -520,8 +526,8 @@ export function BillingClient({ billingInfo, initialPlan }: BillingClientProps) 
         })}
       </div>
 
-      {/* Invoices & Billing History (Owner only) */}
-      {billingInfo?.isOwner && (
+      {/* Invoices & Billing History */}
+      {((billingInfo?.invoices && billingInfo.invoices.length > 0) || billingInfo?.hasStripeCustomer) && (
         <Card className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl shadow-sm overflow-hidden">
           <CardHeader className="border-b border-slate-100 dark:border-slate-800/60 pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">

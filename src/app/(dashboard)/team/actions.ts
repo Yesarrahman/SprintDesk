@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { WorkspaceRole } from '@/types'
 
 export async function inviteMember(email: string, role: WorkspaceRole) {
@@ -79,17 +79,36 @@ export async function inviteMember(email: string, role: WorkspaceRole) {
     return { error: 'Server configuration error: SUPABASE_SERVICE_ROLE_KEY is missing.' }
   }
 
-  // 4. Invite user via Supabase Admin API
-  const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email)
+  // Resolve current origin dynamically for email redirects
+  const headersList = await headers()
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000'
+  const proto = headersList.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https')
+  const origin = `${proto}://${host}`
+
+  let invitedUserId: string | null = null
+
+  // 4. Invite user via Supabase Admin API with explicit redirect URL
+  const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${origin}/auth/callback?next=/dashboard`,
+  })
 
   if (inviteError) {
-    console.error('Error inviting user:', inviteError)
-    // If the user already exists, Supabase might return a specific error
-    // For simplicity, we just return the error message
-    return { error: inviteError.message }
+    // If the user already exists in auth.users, find their ID and proceed to add them to workspace
+    const { data: usersData } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 })
+    const existingUser = usersData?.users?.find(u => u.email?.toLowerCase() === email.trim().toLowerCase())
+    if (existingUser) {
+      invitedUserId = existingUser.id
+    } else {
+      console.error('Error inviting user:', inviteError)
+      return { error: inviteError.message }
+    }
+  } else if (inviteData?.user) {
+    invitedUserId = inviteData.user.id
   }
 
-  const invitedUserId = inviteData.user.id
+  if (!invitedUserId) {
+    return { error: 'Failed to identify invited user' }
+  }
 
   // 5. Ensure the profile exists so we can display their email in the UI
   const { error: profileError } = await adminClient

@@ -32,13 +32,14 @@ export function Header() {
     const loadActiveWorkspace = async () => {
       try {
         const res = await fetchWorkspaces()
-        if (res.workspaces) {
+        if (res.workspaces && res.workspaces.length > 0) {
           const match = document.cookie.match(/(^| )activeWorkspaceId=([^;]+)/)
           const activeId = match ? match[2] : null
-          setActiveWorkspaceId(activeId || undefined)
           const found = res.workspaces.find(w => w.id === activeId)
-          if (found) {
-            setActiveWorkspaceName(found.name === 'My Workspace' ? 'Personal Space' : found.name)
+          const target = found || res.workspaces.find(w => w.name === 'My Workspace') || res.workspaces[0]
+          if (target) {
+            setActiveWorkspaceId(target.id)
+            setActiveWorkspaceName(target.name === 'My Workspace' ? 'Personal Space' : target.name)
           }
         }
       } catch (err) {

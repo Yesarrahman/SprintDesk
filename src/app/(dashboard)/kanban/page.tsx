@@ -5,6 +5,8 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import KanbanActions from '@/components/kanban/kanban-actions'
 
+export const dynamic = 'force-dynamic'
+
 export default async function KanbanPage() {
   const { tasks, error } = await fetchTasks()
   
