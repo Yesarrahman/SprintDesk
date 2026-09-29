@@ -1,13 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Bell, Search, Menu, Building2 } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { Bell, Menu, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/store/ui-store'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuth } from '@/hooks/use-auth'
-import { fetchWorkspaces } from '@/app/actions/workspace'
 
 import { SearchCommand } from './search-command'
 import { NotificationsDropdown } from './notifications-dropdown'
@@ -23,34 +21,8 @@ function getInitials(name: string | null | undefined): string {
 }
 
 export function Header() {
-  const { toggleSidebar } = useUIStore()
+  const { toggleSidebar, activeWorkspaceName, activeWorkspaceId } = useUIStore()
   const { user, profile } = useAuth()
-  const [activeWorkspaceName, setActiveWorkspaceName] = useState<string>('Personal Space')
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | undefined>()
-
-  useEffect(() => {
-    const loadActiveWorkspace = async () => {
-      try {
-        const res = await fetchWorkspaces()
-        if (res.workspaces && res.workspaces.length > 0) {
-          const match = document.cookie.match(/(^| )activeWorkspaceId=([^;]+)/)
-          const activeId = match ? match[2] : null
-          const found = res.workspaces.find(w => w.id === activeId)
-          const target = found || res.workspaces.find(w => w.name === 'My Workspace') || res.workspaces[0]
-          if (target) {
-            setActiveWorkspaceId(target.id)
-            setActiveWorkspaceName(target.name === 'My Workspace' ? 'Personal Space' : target.name)
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load workspaces in header:', err)
-      }
-    }
-
-    loadActiveWorkspace()
-    const interval = setInterval(loadActiveWorkspace, 2000)
-    return () => clearInterval(interval)
-  }, [])
 
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
   const initials = getInitials(profile?.full_name || user?.user_metadata?.full_name)

@@ -5,11 +5,11 @@ import { fetchDashboardMetrics } from './actions'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { CreateTaskDialog } from '@/components/kanban/create-task-dialog'
-import { DashboardChart } from './dashboard-chart'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { DashboardChartWrapper } from './dashboard-chart-wrapper'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -419,7 +419,7 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent className="flex-1 flex items-center justify-center p-0">
                {metrics?.trends && metrics.trends.some((t: any) => t.completed > 0) ? (
-                 <DashboardChart data={metrics.trends} />
+                 <DashboardChartWrapper data={metrics.trends} />
                ) : (
                  <div className="flex flex-col items-center text-slate-400">
                    <TrendingUp className="h-12 w-12 mb-3 opacity-20" />

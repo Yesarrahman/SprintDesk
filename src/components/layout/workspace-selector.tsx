@@ -34,7 +34,7 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isExpanded, setIsExpanded] = useState(true)
-  const { setSidebarOpen, setActiveTier } = useUIStore()
+  const { setSidebarOpen, setActiveTier, setActiveWorkspaceInfo } = useUIStore()
 
   const loadWorkspaces = async () => {
     const result = await fetchWorkspaces()
@@ -49,10 +49,14 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
         if (found) {
           setActiveWorkspace(found)
           setActiveTier((found as any).tier || 'free')
+          const displayName = found.name === 'My Workspace' ? 'Personal Space' : found.name
+          setActiveWorkspaceInfo(found.id, displayName)
         } else {
           const defaultWs = result.workspaces.find(w => w.name === 'My Workspace' && w.role === 'owner') || result.workspaces[0]
           setActiveWorkspace(defaultWs)
           setActiveTier((defaultWs as any).tier || 'free')
+          const displayName = defaultWs.name === 'My Workspace' ? 'Personal Space' : defaultWs.name
+          setActiveWorkspaceInfo(defaultWs.id, displayName)
           setActiveWorkspaceCookie(defaultWs.id)
         }
       }
@@ -67,12 +71,13 @@ export function WorkspaceSelector({ sidebarOpen }: { sidebarOpen: boolean }) {
   const handleSelectWorkspace = async (workspace: Workspace) => {
     setActiveWorkspace(workspace)
     setActiveTier(workspace.tier || 'free')
+    const displayName = workspace.name === 'My Workspace' ? 'Personal Space' : workspace.name
+    setActiveWorkspaceInfo(workspace.id, displayName)
     await setActiveWorkspaceCookie(workspace.id)
-    toast.success(`Switched to ${workspace.name === 'My Workspace' ? 'Personal Space' : workspace.name}`)
+    toast.success(`Switched to ${displayName}`)
     
-    // Navigate to dashboard and force a server re-render for the new active workspace
+    // Navigate to dashboard — server page will read the updated cookie naturally
     router.push('/dashboard')
-    router.refresh()
   }
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {

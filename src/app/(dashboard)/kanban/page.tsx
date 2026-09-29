@@ -8,8 +8,6 @@ import KanbanActions from '@/components/kanban/kanban-actions'
 export const dynamic = 'force-dynamic'
 
 export default async function KanbanPage() {
-  const { tasks, error } = await fetchTasks()
-  
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const cookieStore = await cookies()
@@ -38,45 +36,56 @@ export default async function KanbanPage() {
     }
 
     if (activeWorkspaceId) {
-      const { data: member } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('workspace_id', activeWorkspaceId)
-        .eq('user_id', user.id)
-        .single()
-        
-      if (member) role = member.role
-      
-      const { data: ws } = await adminClient
-        .from('workspaces')
-        .select('name, owner_id, tier, stripe_subscription_id')
-        .eq('id', activeWorkspaceId)
-        .single()
+      // Run member check, workspace info, and profile check in parallel
+      const [memberResult, wsResult, profileResult] = await Promise.all([
+        supabase
+          .from('workspace_members')
+          .select('role')
+          .eq('workspace_id', activeWorkspaceId)
+          .eq('user_id', user.id)
+          .single(),
+        adminClient
+          .from('workspaces')
+          .select('name, owner_id, tier, stripe_subscription_id')
+          .eq('id', activeWorkspaceId)
+          .single(),
+        adminClient
+          .from('profiles')
+          .select('subscription_tier, stripe_subscription_id')
+          .eq('id', user.id)
+          .single(),
+      ])
 
-    const { data: profile } = await adminClient
-      .from('profiles')
-      .select('subscription_tier, stripe_subscription_id')
-      .eq('id', user.id)
-      .single()
+      if (memberResult.data) role = memberResult.data.role
 
-    if (
-      (profile?.subscription_tier === 'pro' || profile?.subscription_tier === 'agency') && !!profile?.stripe_subscription_id ||
-      (ws?.tier === 'pro' || ws?.tier === 'agency') && !!ws?.stripe_subscription_id
-    ) {
-      isPaid = true
-    }
-      
-    if (ws) {
-      workspaceName = ws.name
-      if (ws.name === 'My Workspace' && ws.owner_id === user.id) {
-        isPersonal = true
+      const ws = wsResult.data
+      const profile = profileResult.data
+
+      if (
+        (profile?.subscription_tier === 'pro' || profile?.subscription_tier === 'agency') && !!profile?.stripe_subscription_id ||
+        (ws?.tier === 'pro' || ws?.tier === 'agency') && !!ws?.stripe_subscription_id
+      ) {
+        isPaid = true
+      }
+
+      if (ws) {
+        workspaceName = ws.name
+        if (ws.name === 'My Workspace' && ws.owner_id === user.id) {
+          isPersonal = true
+        }
       }
     }
   }
-}
+  // Run tasks, columns, and team members in parallel
+  const [tasksResult, columnsResult, membersResult] = await Promise.all([
+    fetchTasks(),
+    activeWorkspaceId ? fetchKanbanColumns(activeWorkspaceId, isPersonal) : Promise.resolve({ columns: [] }),
+    !isPersonal ? fetchTeamMembers() : Promise.resolve({ members: [] }),
+  ])
 
-  const { columns } = activeWorkspaceId ? await fetchKanbanColumns(activeWorkspaceId, isPersonal) : { columns: [] }
-  const { members } = !isPersonal ? await fetchTeamMembers() : { members: [] }
+  const { tasks, error } = tasksResult
+  const { columns } = columnsResult
+  const { members } = membersResult
 
   if (error) {
     return (

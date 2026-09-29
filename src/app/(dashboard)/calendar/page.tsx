@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { CalendarClient } from './calendar-client'
+import { CalendarClientWrapper } from './calendar-client-wrapper'
 
 export default async function CalendarPage() {
   const supabase = await createClient()
@@ -19,6 +19,6 @@ export default async function CalendarPage() {
   const { data: tasks, error } = await query
 
   return (
-    <CalendarClient tasks={tasks || []} />
+    <CalendarClientWrapper tasks={tasks || []} />
   )
 }
