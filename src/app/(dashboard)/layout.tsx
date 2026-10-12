@@ -1,6 +1,7 @@
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 import { VerificationToast } from '@/components/auth/verification-toast'
+import { RouteProgressBar } from '@/components/layout/route-progress-bar'
 import { Suspense } from 'react'
 
 export default function DashboardLayout({
@@ -10,9 +11,13 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 relative overflow-hidden">
-      {/* Background gradients for glassmorphism */}
-      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-indigo-500/10 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob"></div>
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-purple-500/10 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
+      <Suspense fallback={null}>
+        <RouteProgressBar />
+      </Suspense>
+
+      {/* Ambient background glows - hardware accelerated without blend-mode thrashing */}
+      <div className="pointer-events-none absolute -top-40 -right-40 w-[600px] h-[600px] bg-gradient-to-br from-indigo-500/15 to-transparent rounded-full blur-3xl"></div>
+      <div className="pointer-events-none absolute -bottom-40 -left-40 w-[600px] h-[600px] bg-gradient-to-tr from-purple-500/15 to-transparent rounded-full blur-3xl"></div>
 
       <Sidebar />
 

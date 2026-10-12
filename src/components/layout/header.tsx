@@ -25,7 +25,8 @@ export function Header() {
   const { user, profile } = useAuth()
 
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
-  const initials = getInitials(profile?.full_name || user?.user_metadata?.full_name)
+  const initials = getInitials(profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0])
+  const avatarUrl = profile?.avatar_url || (user?.user_metadata?.avatar_url as string) || ''
 
   return (
     <header className="h-16 flex items-center justify-between px-6 bg-white/40 dark:bg-slate-950/40 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 sticky top-0 z-10">
@@ -53,7 +54,7 @@ export function Header() {
             <p className="text-xs text-slate-500 mt-1">{user?.email}</p>
           </div>
           <Avatar className="h-9 w-9 border border-indigo-100 dark:border-indigo-900 shadow-sm">
-            <AvatarImage src={profile?.avatar_url || ''} alt={displayName} />
+            <AvatarImage src={avatarUrl} alt={displayName} />
             <AvatarFallback className="bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-medium">
               {initials}
             </AvatarFallback>

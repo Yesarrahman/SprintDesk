@@ -67,6 +67,7 @@ export function Sidebar() {
               <Link
                 key={item.name}
                 href={item.href}
+                prefetch={true}
                 className={cn(
                   'flex items-center rounded-lg px-3 py-2.5 transition-colors',
                   isActive

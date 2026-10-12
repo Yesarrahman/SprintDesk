@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getCurrentUserProfile } from '@/app/actions/profile'
 import type { Profile } from '@/types'
 import type { User } from '@supabase/supabase-js'
 
@@ -10,6 +11,7 @@ export interface AuthContextType {
   profile: Profile | null
   loading: boolean
   signOut: () => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -17,6 +19,7 @@ export const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   signOut: async () => {},
+  refreshProfile: async () => {},
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -26,13 +29,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const supabase = createClient()
 
+  const refreshProfile = useCallback(async () => {
+    try {
+      const res = await getCurrentUserProfile()
+      if (res?.profile) {
+        setProfile(res.profile)
+      }
+    } catch (err) {
+      console.error('Error refreshing profile:', err)
+    }
+  }, [])
+
   const fetchProfile = useCallback(
     async (userId: string) => {
+      // First try secure server action which uses admin client (bypasses RLS recursion)
+      const res = await getCurrentUserProfile()
+      if (res?.profile) {
+        setProfile(res.profile)
+        return
+      }
+
+      // Fallback to direct client query if server action did not return
       const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
 
       setProfile(data as Profile | null)
     },
@@ -83,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase])
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )

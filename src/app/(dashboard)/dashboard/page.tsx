@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { DashboardChartWrapper } from './dashboard-chart-wrapper'
+import { DashboardGreeting } from '@/components/dashboard/dashboard-greeting'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -125,7 +126,7 @@ export default async function DashboardPage() {
     const sprintProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
     return (
-      <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+      <div className="space-y-8 animate-in fade-in duration-200 pb-10">
         {/* Workspace Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
@@ -338,12 +339,10 @@ export default async function DashboardPage() {
   // PERSONAL DASHBOARD (unchanged)
   // ──────────────────────────────────────────────
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+    <div className="space-y-8 animate-in fade-in duration-200 pb-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400">
-            {greeting}, {userName}
-          </h1>
+          <DashboardGreeting userName={userName} initialGreeting={greeting} />
           <p className="text-slate-500 mt-1">Here&apos;s your productivity overview for today.</p>
         </div>
         <CreateTaskDialog isPersonal={isPersonal} />

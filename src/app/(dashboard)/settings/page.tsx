@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUserProfile } from '@/app/actions/profile'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ThemeSwitcher } from '@/components/layout/theme-switcher'
@@ -9,11 +10,7 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+  const { profile } = await getCurrentUserProfile()
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-10">

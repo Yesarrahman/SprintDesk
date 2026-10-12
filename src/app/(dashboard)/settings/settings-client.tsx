@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Loader2, Camera, User, CreditCard } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { saveProfile, uploadAvatar } from './actions'
+import { useAuth } from '@/hooks/use-auth'
 
 interface SettingsClientProps {
   email: string
@@ -21,6 +23,8 @@ interface SettingsClientProps {
 }
 
 export function SettingsClient({ email, initialFullName, initialAvatarUrl, initialTier = 'free' }: SettingsClientProps) {
+  const router = useRouter()
+  const { refreshProfile } = useAuth()
   const [fullName, setFullName] = useState(initialFullName)
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
@@ -28,7 +32,7 @@ export function SettingsClient({ email, initialFullName, initialAvatarUrl, initi
   const [isPendingAvatar, startAvatarTransition] = useTransition()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const initials = (initialFullName || email)
+  const initials = (fullName || initialFullName || email)
     .split(' ')
     .map((n) => n[0])
     .join('')
@@ -44,28 +48,42 @@ export function SettingsClient({ email, initialFullName, initialAvatarUrl, initi
     reader.readAsDataURL(file)
 
     startAvatarTransition(async () => {
-      const fd = new FormData()
-      fd.append('avatar', file)
-      const result = await uploadAvatar(fd)
-      if (result.error) {
-        toast.error(result.error)
+      try {
+        const fd = new FormData()
+        fd.append('avatar', file)
+        const result = await uploadAvatar(fd)
+        if (result.error) {
+          toast.error(result.error)
+          setAvatarPreview(null)
+        } else {
+          setAvatarUrl(result.avatarUrl || '')
+          setAvatarPreview(null)
+          await refreshProfile()
+          router.refresh()
+          toast.success('Avatar updated!')
+        }
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to upload avatar')
         setAvatarPreview(null)
-      } else {
-        setAvatarUrl(result.avatarUrl || '')
-        toast.success('Avatar updated!')
       }
     })
   }
 
   function handleSaveProfile() {
     startProfileTransition(async () => {
-      const fd = new FormData()
-      fd.append('full_name', fullName)
-      const result = await saveProfile(fd)
-      if (result.error) {
-        toast.error(result.error)
-      } else {
-        toast.success('Profile saved!')
+      try {
+        const fd = new FormData()
+        fd.append('full_name', fullName)
+        const result = await saveProfile(fd)
+        if (result.error) {
+          toast.error(result.error)
+        } else {
+          await refreshProfile()
+          router.refresh()
+          toast.success('Profile saved!')
+        }
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to save profile')
       }
     })
   }

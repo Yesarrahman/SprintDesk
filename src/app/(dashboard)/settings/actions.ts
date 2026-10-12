@@ -13,17 +13,16 @@ export async function saveProfile(formData: FormData) {
 
   const trimmedName = fullName.trim()
 
-  // 1. Update Auth metadata so Supabase email templates can access {{ .Data.full_name }}
+  // 1. Update Auth metadata so Supabase email templates & auth state access {{ .Data.full_name }}
   await supabase.auth.updateUser({
     data: { full_name: trimmedName },
   })
 
-  // 2. Update profiles table
+  // 2. Update profiles table with upsert
   const adminClient = await createAdminClient()
   const { error } = await adminClient
     .from('profiles')
-    .update({ full_name: trimmedName })
-    .eq('id', user.id)
+    .upsert({ id: user.id, full_name: trimmedName }, { onConflict: 'id' })
 
   if (error) return { error: error.message }
 
@@ -64,10 +63,15 @@ export async function uploadAvatar(formData: FormData) {
 
   const avatarUrl = `${publicUrl}?t=${Date.now()}`
 
+  // 1. Update Auth metadata
+  await supabase.auth.updateUser({
+    data: { avatar_url: avatarUrl },
+  })
+
+  // 2. Upsert profile table
   const { error: updateError } = await adminClient
     .from('profiles')
-    .update({ avatar_url: avatarUrl })
-    .eq('id', user.id)
+    .upsert({ id: user.id, avatar_url: avatarUrl }, { onConflict: 'id' })
 
   if (updateError) return { error: updateError.message }
 
