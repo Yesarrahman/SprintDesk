@@ -464,10 +464,38 @@ export async function updateColumnOrder(updates: { id: string; order_index: numb
 
 export async function fetchTeamMembers() {
   try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { members: [] }
+
     const cookieStore = await cookies()
     const activeWorkspaceId = cookieStore.get('activeWorkspaceId')?.value
     if (!activeWorkspaceId) return { members: [] }
+
     const adminClient = await createAdminClient()
+
+    // Verify user is member or owner of active workspace
+    const { data: ws } = await adminClient
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', activeWorkspaceId)
+      .single()
+
+    let isAuthorized = ws?.owner_id === user.id
+    if (!isAuthorized) {
+      const { data: member } = await adminClient
+        .from('workspace_members')
+        .select('id')
+        .eq('workspace_id', activeWorkspaceId)
+        .eq('user_id', user.id)
+        .single()
+      if (member) isAuthorized = true
+    }
+
+    if (!isAuthorized) {
+      return { members: [] }
+    }
+
     const { data } = await adminClient
       .from('workspace_members')
       .select('user_id, profiles(full_name, avatar_url)')
