@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { ensurePersonalWorkspace } from '@/app/actions/workspace'
 
 export async function login(formData: FormData) {
@@ -57,46 +57,7 @@ export async function signup(formData: FormData) {
   const proto = headersList.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https')
   const origin = `${proto}://${host}`
 
-  const adminClient = await createAdminClient()
-
-  // 1. Check if user already exists as an invited member
-  const { data: usersData } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 })
-  const existingUser = usersData?.users?.find(u => u.email?.toLowerCase() === email)
-
-  if (existingUser) {
-    // Member was already invited: set their chosen password, confirm email, and update metadata
-    const { error: updateError } = await adminClient.auth.admin.updateUserById(existingUser.id, {
-      password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName || existingUser.user_metadata?.full_name || email.split('@')[0],
-      },
-    })
-
-    if (updateError) {
-      console.error('Error activating invited user:', updateError)
-      return { error: updateError.message }
-    }
-
-    // Sign in immediately with their new credentials
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (signInError) {
-      console.error('Error signing in activated user:', signInError)
-      return { error: signInError.message }
-    }
-
-    // Auto-create Personal Space
-    await ensurePersonalWorkspace(existingUser.id, email, fullName)
-
-    revalidatePath('/', 'layout')
-    redirect('/dashboard')
-  }
-
-  // 2. Fresh new user signup
+  // Standard secure user signup
   const { data: authData, error } = await supabase.auth.signUp({
     email,
     password,

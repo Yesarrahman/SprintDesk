@@ -16,6 +16,28 @@ export async function fetchDashboardMetrics() {
 
   const adminClient = await createAdminClient()
 
+  // Verify user is member or owner of active workspace
+  const { data: ws } = await adminClient
+    .from('workspaces')
+    .select('owner_id')
+    .eq('id', activeWorkspaceId)
+    .single()
+
+  let isAuthorized = ws?.owner_id === user.id
+  if (!isAuthorized) {
+    const { data: member } = await adminClient
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', activeWorkspaceId)
+      .eq('user_id', user.id)
+      .single()
+    if (member) isAuthorized = true
+  }
+
+  if (!isAuthorized) {
+    return { metrics: null, error: 'Unauthorized' }
+  }
+
   // ─── Date ranges ───────────────────────────────────────────────
   const today = new Date()
   today.setHours(0, 0, 0, 0)

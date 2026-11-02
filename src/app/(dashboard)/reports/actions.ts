@@ -16,6 +16,49 @@ export interface UserContext {
   isPersonal: boolean
 }
 
+export async function verifyWorkspaceAccess(workspaceId: string) {
+  if (!workspaceId) {
+    return { error: 'Workspace ID is required', user: null, adminClient: null }
+  }
+
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return { error: 'Unauthorized: Not authenticated', user: null, adminClient: null }
+  }
+
+  const adminClient = await createAdminClient()
+
+  // 1. Check if user is the workspace owner
+  const { data: ws, error: wsError } = await adminClient
+    .from('workspaces')
+    .select('id, name, owner_id')
+    .eq('id', workspaceId)
+    .single()
+
+  if (wsError || !ws) {
+    return { error: 'Workspace not found', user: null, adminClient: null }
+  }
+
+  if (ws.owner_id === user.id) {
+    return { user, adminClient, role: 'owner' as WorkspaceRole, workspace: ws }
+  }
+
+  // 2. Check if user is a member
+  const { data: membership } = await adminClient
+    .from('workspace_members')
+    .select('role')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!membership) {
+    return { error: 'Access denied: You are not a member of this workspace', user: null, adminClient: null }
+  }
+
+  return { user, adminClient, role: membership.role as WorkspaceRole, workspace: ws }
+}
+
 export async function getUserTierAndRole(): Promise<{ error?: string; context?: UserContext }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -64,6 +107,8 @@ export async function getUserTierAndRole(): Promise<{ error?: string; context?: 
 
     if (membership?.role) {
       role = membership.role as WorkspaceRole
+    } else {
+      return { error: 'Access denied: You are not a member of this workspace' }
     }
   }
 
@@ -96,7 +141,11 @@ export async function getUserTierAndRole(): Promise<{ error?: string; context?: 
 }
 
 export async function fetchWorkspaceMembers(workspaceId: string) {
-  const adminClient = await createAdminClient()
+  const auth = await verifyWorkspaceAccess(workspaceId)
+  if (auth.error || !auth.adminClient) {
+    return { members: [], error: auth.error || 'Unauthorized' }
+  }
+  const adminClient = auth.adminClient
   const { data: members, error } = await adminClient
     .from('workspace_members')
     .select(`
@@ -152,7 +201,11 @@ export async function fetchWorkspaceMembers(workspaceId: string) {
 }
 
 export async function fetchTeamReportData(workspaceId: string, fromDate: string, toDate: string) {
-  const adminClient = await createAdminClient()
+  const auth = await verifyWorkspaceAccess(workspaceId)
+  if (auth.error || !auth.adminClient) {
+    return { error: auth.error || 'Unauthorized' }
+  }
+  const adminClient = auth.adminClient
 
   // Get workspace info
   const { data: ws } = await adminClient
@@ -390,7 +443,11 @@ export async function fetchIndividualReportData(
   fromDate: string,
   toDate: string
 ) {
-  const adminClient = await createAdminClient()
+  const auth = await verifyWorkspaceAccess(workspaceId)
+  if (auth.error || !auth.adminClient) {
+    return { error: auth.error || 'Unauthorized' }
+  }
+  const adminClient = auth.adminClient
 
   // Get workspace info
   const { data: ws } = await adminClient
@@ -593,10 +650,18 @@ export async function submitReportToManager(payload: {
   rangeTo: string
   reportData: any
 }) {
-  const adminClient = await createAdminClient()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated' }
+  const auth = await verifyWorkspaceAccess(payload.workspaceId)
+  if (auth.error || !auth.adminClient || !auth.user) {
+    return { error: auth.error || 'Unauthorized' }
+  }
+
+  // Regular members can only submit their own performance report
+  if (auth.role === 'member' && payload.memberId !== auth.user.id) {
+    return { error: 'You can only submit your own performance report' }
+  }
+
+  const adminClient = auth.adminClient
+  const user = auth.user
 
   // 1. Insert into submitted_reports table
   const { data: submittedReport, error: insertError } = await adminClient
@@ -661,18 +726,27 @@ export async function submitReportToManager(payload: {
 }
 
 export async function fetchSubmittedReports(workspaceId: string) {
-  const adminClient = await createAdminClient()
+  const auth = await verifyWorkspaceAccess(workspaceId)
+  if (auth.error || !auth.adminClient) {
+    return { error: auth.error || 'Unauthorized', reports: [] }
+  }
+  const adminClient = auth.adminClient
+
   const { data, error } = await adminClient
     .from('submitted_reports')
     .select('*')
     .eq('workspace_id', workspaceId)
     .order('submitted_at', { ascending: false })
 
-  if (error) return { error: error.message }
+  if (error) return { error: error.message, reports: [] }
   return { reports: data || [] }
 }
 
 export async function fetchSubmittedReportById(id: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
   const adminClient = await createAdminClient()
   const { data, error } = await adminClient
     .from('submitted_reports')
@@ -681,5 +755,12 @@ export async function fetchSubmittedReportById(id: string) {
     .single()
 
   if (error || !data) return { error: error?.message || 'Report not found' }
+
+  // Verify the user has access to the workspace that this report belongs to
+  const auth = await verifyWorkspaceAccess(data.workspace_id)
+  if (auth.error) {
+    return { error: auth.error }
+  }
+
   return { report: data }
 }
